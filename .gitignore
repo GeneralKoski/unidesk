@@ -1,0 +1,17 @@
+# dipendenze
+node_modules/
+
+# credenziali - MAI committare
+.env
+.env.local
+*.credentials
+*.key
+
+# build / cache
+.next/
+dist/
+*.tsbuildinfo
+
+# materiali scaricati e dati personali
+corsi/*/materiali/
+.DS_Store

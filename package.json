@@ -1,0 +1,22 @@
+{
+  "name": "unidesk",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "unimcp",
+    "web"
+  ],
+  "scripts": {
+    "mcp": "tsx unimcp/src/server.ts",
+    "web": "npm run dev --workspace web",
+    "all": "concurrently -n web,mcp -c blue,green \"npm:web\" \"npm:mcp\""
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "concurrently": "^10.0.3",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
