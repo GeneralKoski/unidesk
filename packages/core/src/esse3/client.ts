@@ -154,17 +154,15 @@ export class Esse3Client {
           (parseEsse3Date(b.dataInizioApp) ?? 0),
       )
       .map((a) => {
+        // Segnale autoritativo di Esse3: stato "P" = prenotazioni aperte.
+        const prenotabile = a.stato === "P";
         const apertura = parseEsse3Date(a.dataInizioIscr);
-        const chiusura = parseEsse3Date(a.dataFineIscr);
-        let iscrizioni: AppelloConStato["iscrizioni"] = "chiusa";
-        if (apertura !== null && oggi < apertura) iscrizioni = "futura";
-        else if (chiusura !== null && oggi <= chiusura) iscrizioni = "aperta";
-        return {
-          ...a,
-          prenotato: iscritto.has(a.appId),
-          prenotabile: iscrizioni === "aperta",
-          iscrizioni,
-        };
+        const iscrizioni: AppelloConStato["iscrizioni"] = prenotabile
+          ? "aperta"
+          : apertura !== null && oggi < apertura
+            ? "futura"
+            : "chiusa";
+        return { ...a, prenotato: iscritto.has(a.appId), prenotabile, iscrizioni };
       });
   }
 
@@ -178,7 +176,6 @@ export class Esse3Client {
       this.getPrenotazioni(matId).catch(() => [] as Presa[]),
     ]);
     const presaByAd = new Map(prese.map((p) => [p.adId, p]));
-    const oggi = startOfTodayUTC();
 
     return Promise.all(
       daFare.map(async (r): Promise<RigaDaSostenere> => {
@@ -195,6 +192,7 @@ export class Esse3Client {
             ...r,
             prenotazione: {
               stato: "prenotato",
+              prenotabili: 0,
               dataPrenotazione: presa.dataIns,
               dataAppello: appello?.dataInizioApp ?? presa.dataEsa,
             },
@@ -202,26 +200,41 @@ export class Esse3Client {
         }
 
         if (r.numAppelliPrenotabili > 0) {
-          const appelli = await this.getAppelli(cdsId, adId).catch(
-            () => [] as Appello[],
-          );
-          const primo = appelli
-            .filter((a) => {
-              const ap = parseEsse3Date(a.dataInizioIscr);
-              const ch = parseEsse3Date(a.dataFineIscr);
-              return ap !== null && ch !== null && oggi >= ap && oggi <= ch;
-            })
+          let appelli: Appello[] | null = null;
+          try {
+            appelli = await this.getAppelli(cdsId, adId);
+          } catch {
+            // Appelli non accessibili via API (restrizione Esse3, es. esami
+            // mutuati): ci si fida del conteggio del libretto.
+            appelli = null;
+          }
+          if (appelli === null) {
+            return {
+              ...r,
+              prenotazione: {
+                stato: "esterno",
+                prenotabili: r.numAppelliPrenotabili,
+                dataPrenotazione: null,
+                dataAppello: null,
+              },
+            };
+          }
+          // Conteggio reale: appelli con stato "P" (prenotazioni aperte), non
+          // il numAppelliPrenotabili del libretto che può sotto-contare.
+          const aperti = appelli
+            .filter((a) => a.stato === "P")
             .sort(
               (a, b) =>
                 (parseEsse3Date(a.dataInizioApp) ?? Infinity) -
                 (parseEsse3Date(b.dataInizioApp) ?? Infinity),
-            )[0];
+            );
           return {
             ...r,
             prenotazione: {
-              stato: "prenotabile",
+              stato: aperti.length > 0 ? "prenotabile" : "nessuno",
+              prenotabili: aperti.length,
               dataPrenotazione: null,
-              dataAppello: primo?.dataInizioApp ?? null,
+              dataAppello: aperti[0]?.dataInizioApp ?? null,
             },
           };
         }
@@ -230,6 +243,7 @@ export class Esse3Client {
           ...r,
           prenotazione: {
             stato: "nessuno",
+            prenotabili: 0,
             dataPrenotazione: null,
             dataAppello: null,
           },

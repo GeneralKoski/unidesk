@@ -1,18 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Alert,
-  Card,
-  Collapse,
-  Empty,
-  List,
-  Spin,
-  Tag,
-  Typography,
-} from "antd";
-import { FileOutlined, LinkOutlined } from "@ant-design/icons";
-import type { Course, Module, Section } from "@unidesk/core";
+import { useRouter } from "next/navigation";
+import { Alert, Card, Col, Empty, Row, Spin, Typography } from "antd";
+import { BookOutlined } from "@ant-design/icons";
+import type { Course } from "@unidesk/core";
 
 async function getJSON<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -21,65 +13,8 @@ async function getJSON<T>(url: string): Promise<T> {
   return data as T;
 }
 
-function ModuleItem({ m }: { m: Module }) {
-  const isFile = m.modname === "resource" || m.modname === "folder";
-  const icon = isFile ? <FileOutlined /> : <LinkOutlined />;
-  if (m.url) {
-    // Passa dal proxy: scarica col cookie di sessione server-side; i moduli
-    // "url" vengono reindirizzati alla destinazione esterna.
-    const href = `/api/elly/file?url=${encodeURIComponent(m.url)}`;
-    return (
-      <a href={href} target="_blank" rel="noreferrer">
-        {icon} {m.name}
-      </a>
-    );
-  }
-  return <span>{m.name}</span>;
-}
-
-function CourseContents({ courseid }: { courseid: number }) {
-  const [sections, setSections] = useState<Section[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    getJSON<Section[]>(`/api/elly/contents?courseid=${courseid}`)
-      .then(setSections)
-      .catch((err) => setError(err instanceof Error ? err.message : String(err)));
-  }, [courseid]);
-
-  if (error) return <Alert type="error" showIcon message={error} />;
-  if (!sections) return <Spin />;
-
-  const visible = sections.filter((s) => s.modules.length > 0);
-  if (visible.length === 0) return <Empty description="Nessun contenuto" />;
-
-  return (
-    <>
-      {visible.map((s) => (
-        <Card
-          key={s.id}
-          type="inner"
-          size="small"
-          title={s.name || `Sezione ${s.section}`}
-          style={{ marginBottom: 12 }}
-        >
-          <List
-            size="small"
-            dataSource={s.modules}
-            renderItem={(m) => (
-              <List.Item>
-                <ModuleItem m={m} />
-                <Tag style={{ marginLeft: "auto" }}>{m.modname}</Tag>
-              </List.Item>
-            )}
-          />
-        </Card>
-      ))}
-    </>
-  );
-}
-
 export default function CorsiPage() {
+  const router = useRouter();
   const [courses, setCourses] = useState<Course[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -91,7 +26,8 @@ export default function CorsiPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <Spin size="large" style={{ display: "block", marginTop: 80 }} />;
+  if (loading)
+    return <Spin size="large" style={{ display: "block", marginTop: 80 }} />;
 
   if (error) {
     return (
@@ -109,14 +45,27 @@ export default function CorsiPage() {
   return (
     <div>
       <Typography.Title level={3}>Corsi su Elly</Typography.Title>
-      <Collapse
-        accordion
-        items={courses.map((c) => ({
-          key: String(c.id),
-          label: c.fullname ?? c.shortname,
-          children: <CourseContents courseid={c.id} />,
-        }))}
-      />
+      <Row gutter={[16, 16]}>
+        {courses.map((c) => (
+          <Col xs={24} sm={12} lg={8} key={c.id}>
+            <Card
+              hoverable
+              onClick={() =>
+                router.push(
+                  `/corsi/${c.id}?n=${encodeURIComponent(c.fullname ?? c.shortname)}`,
+                )
+              }
+              style={{ height: "100%" }}
+            >
+              <Card.Meta
+                avatar={<BookOutlined style={{ fontSize: 22, color: "#1677ff" }} />}
+                title={c.fullname ?? c.shortname}
+                description={c.shortname}
+              />
+            </Card>
+          </Col>
+        ))}
+      </Row>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { Esse3Client } from "@unidesk/core";
+import { Esse3Client, esse3WebBase } from "@unidesk/core";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +21,9 @@ export async function GET(req: Request) {
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 502 });
+    return NextResponse.json(
+      { error: message, esse3Url: `${esse3WebBase()}/auth/studente/Appelli/AppelliF.do` },
+      { status: 502 },
+    );
   }
 }

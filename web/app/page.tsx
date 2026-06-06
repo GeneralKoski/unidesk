@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Alert,
   Card,
@@ -33,6 +34,7 @@ function carrieraLabel(t: TrattoCarriera): string {
 }
 
 export default function CarrieraPage() {
+  const router = useRouter();
   const [carriere, setCarriere] = useState<TrattoCarriera[]>([]);
   const [matId, setMatId] = useState<number | null>(null);
   const [libretto, setLibretto] = useState<Libretto | null>(null);
@@ -144,8 +146,10 @@ export default function CarrieraPage() {
       render: (_: unknown, r: RigaDaSostenere) =>
         r.numPrenotazioni > 0 ? (
           <Tag color="blue">Prenotato</Tag>
-        ) : r.numAppelliPrenotabili > 0 ? (
-          <Tag color="gold">{r.numAppelliPrenotabili} prenotabile/i</Tag>
+        ) : r.prenotazione?.stato === "esterno" ? (
+          <Tag color="orange">Su Esse3</Tag>
+        ) : r.prenotazione?.prenotabili > 0 ? (
+          <Tag color="gold">{r.prenotazione.prenotabili} prenotabile/i</Tag>
         ) : (
           <Tag>Nessun appello</Tag>
         ),
@@ -198,7 +202,7 @@ export default function CarrieraPage() {
       </Space>
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={6}>
+        <Col xs={12} md={6}>
           <Card>
             <Statistic
               title="Media ponderata"
@@ -207,17 +211,17 @@ export default function CarrieraPage() {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={12} md={6}>
           <Card>
             <Statistic title="CFU acquisiti" value={s?.cfuFatti ?? 0} />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={12} md={6}>
           <Card>
             <Statistic title="Esami superati" value={s?.esamiSuperati ?? 0} />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={12} md={6}>
           <Card>
             <Statistic title="Esami da fare" value={s?.esamiDaFare ?? 0} />
           </Card>
@@ -244,6 +248,7 @@ export default function CarrieraPage() {
               ...r,
               prenotazione: {
                 stato: "nessuno",
+                prenotabili: 0,
                 dataPrenotazione: null,
                 dataAppello: null,
               },
@@ -253,6 +258,20 @@ export default function CarrieraPage() {
           pagination={false}
           size="small"
           loading={librettoLoading || dsLoading}
+          onRow={(r) => ({
+            style: { cursor: "pointer" },
+            onClick: () => {
+              const k = r.chiaveADContestualizzata;
+              const q = new URLSearchParams({
+                matId: String(matId),
+                cdsId: String(k.cdsId),
+                adsceId: String(r.adsceId),
+                stuId: String(r.stuId),
+                n: r.adDes,
+              });
+              router.push(`/esami/${k.adId}?${q.toString()}`);
+            },
+          })}
         />
       </Card>
     </div>

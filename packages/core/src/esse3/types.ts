@@ -55,6 +55,7 @@ export interface Appello {
   dataFineIscr: string; // chiusura iscrizioni
   numIscritti: number;
   note: string | null;
+  stato: string; // "P" = Prenotazioni Aperte (prenotabile ora)
 }
 
 export interface Presa {
@@ -66,7 +67,9 @@ export interface Presa {
 }
 
 export interface PrenotazioneInfo {
-  stato: "prenotato" | "prenotabile" | "nessuno";
+  // "esterno" = prenotabile ma appelli non accessibili via API (gestione su Esse3)
+  stato: "prenotato" | "prenotabile" | "esterno" | "nessuno";
+  prenotabili: number; // numero di appelli realmente prenotabili ora (stato "P")
   dataPrenotazione: string | null; // valorizzata se prenotato
   dataAppello: string | null; // esame prenotato, o primo appello prenotabile
 }
