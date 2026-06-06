@@ -4,23 +4,73 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { Alert, Button, Card, Empty, List, Spin, Tag, Typography } from "antd";
-import { ArrowLeftOutlined, FileOutlined, LinkOutlined } from "@ant-design/icons";
+import {
+  ArrowLeftOutlined,
+  DownOutlined,
+  FileOutlined,
+  FolderOutlined,
+  LinkOutlined,
+  RightOutlined,
+} from "@ant-design/icons";
 import type { Module, Section } from "@unidesk/core";
+import { getJSON } from "@/lib/api";
 
-async function getJSON<T>(url: string): Promise<T> {
-  const res = await fetch(url);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
-  return data as T;
+const fileHref = (url: string) => `/api/elly/file?url=${encodeURIComponent(url)}`;
+
+function FolderItem({ m }: { m: Module }) {
+  const [open, setOpen] = useState(false);
+  const [files, setFiles] = useState<{ name: string; url: string }[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const toggle = async () => {
+    setOpen((o) => !o);
+    if (files || !m.url) return;
+    setLoading(true);
+    try {
+      setFiles(await getJSON(`/api/elly/folder?url=${encodeURIComponent(m.url)}`));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ width: "100%" }}>
+      <a onClick={toggle} style={{ cursor: "pointer" }}>
+        <FolderOutlined /> {m.name} {open ? <DownOutlined /> : <RightOutlined />}
+      </a>
+      {open &&
+        (loading ? (
+          <Spin size="small" style={{ marginInlineStart: 24 }} />
+        ) : error ? (
+          <Alert type="error" showIcon message={error} style={{ marginTop: 8 }} />
+        ) : (
+          <List
+            size="small"
+            dataSource={files ?? []}
+            locale={{ emptyText: "Cartella vuota" }}
+            style={{ marginInlineStart: 24 }}
+            renderItem={(f) => (
+              <List.Item>
+                <a href={fileHref(f.url)} target="_blank" rel="noreferrer">
+                  <FileOutlined /> {f.name}
+                </a>
+              </List.Item>
+            )}
+          />
+        ))}
+    </div>
+  );
 }
 
 function ModuleItem({ m }: { m: Module }) {
-  const isFile = m.modname === "resource" || m.modname === "folder";
-  const icon = isFile ? <FileOutlined /> : <LinkOutlined />;
+  if (m.modname === "folder") return <FolderItem m={m} />;
+  const icon = m.modname === "resource" ? <FileOutlined /> : <LinkOutlined />;
   if (m.url) {
-    const href = `/api/elly/file?url=${encodeURIComponent(m.url)}`;
     return (
-      <a href={href} target="_blank" rel="noreferrer">
+      <a href={fileHref(m.url)} target="_blank" rel="noreferrer">
         {icon} {m.name}
       </a>
     );

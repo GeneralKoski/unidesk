@@ -216,6 +216,46 @@ export class EllyClient {
     throw new Error("Impossibile risolvere il file Elly");
   }
 
+  // File contenuti in un modulo "folder": apre la pagina della cartella con la
+  // sessione e raccoglie TUTTI i link pluginfile (non solo il primo).
+  async getFolderFiles(folderUrl: string): Promise<{ name: string; url: string }[]> {
+    const baseHost = new URL(this.cfg.base).host;
+    if (new URL(folderUrl).host !== baseHost) {
+      throw new Error("URL non appartiene a Elly");
+    }
+    const { cookie } = await this.getSession();
+    let cur = folderUrl;
+    let html = "";
+    for (let i = 0; i < 6; i++) {
+      const res = await fetch(cur, { redirect: "manual", headers: { Cookie: cookie } });
+      if (res.status >= 300 && res.status < 400) {
+        const loc = res.headers.get("location");
+        if (!loc) break;
+        const next = new URL(loc, cur);
+        // Non seguire (col cookie) redirect cross-host: anti-SSRF.
+        if (next.host !== baseHost) throw new Error("Redirect Elly cross-host non permesso");
+        cur = next.toString();
+        continue;
+      }
+      html = await res.text();
+      break;
+    }
+    const seen = new Set<string>();
+    const files: { name: string; url: string }[] = [];
+    for (const m of html.matchAll(/https?:\/\/[^"'<>\\]*\/pluginfile\.php\/[^"'<>\\\s]+/gi)) {
+      const u = m[0].replace(/&amp;/g, "&");
+      const { host, pathname } = new URL(u);
+      // Stesso host (anti-SSRF), solo file della cartella (no loghi/tema), unici.
+      if (host !== baseHost || !pathname.includes("/mod_folder/") || seen.has(u)) {
+        continue;
+      }
+      seen.add(u);
+      const last = pathname.split("/").pop() ?? "file";
+      files.push({ name: decodeURIComponent(last), url: u });
+    }
+    return files;
+  }
+
   async getCourseContents(courseid: number): Promise<Section[]> {
     // get_state restituisce `data` come stringa JSON con course/section/cm.
     const raw = await this.ajax<string>("core_courseformat_get_state", { courseid });

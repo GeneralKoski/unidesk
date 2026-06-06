@@ -17,6 +17,7 @@ import {
 } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import type { AppelloConStato } from "@unidesk/core";
+import { notifyUnauthorized } from "@/lib/api";
 
 const fmt = (d: string | undefined) => (d ? d.slice(0, 10) : "-");
 
@@ -40,6 +41,10 @@ export default function EsameDettaglioPage() {
     setEsse3Url(null);
     fetch(`/api/esse3/appelli?matId=${matId}&cdsId=${cdsId}&adId=${adId}`)
       .then(async (res) => {
+        if (res.status === 401) {
+          notifyUnauthorized();
+          throw new Error("Sessione scaduta");
+        }
         const data = await res.json();
         if (!res.ok) {
           setEsse3Url(data.esse3Url ?? null);
@@ -67,6 +72,10 @@ export default function EsameDettaglioPage() {
           stuId: Number(stuId),
         }),
       });
+      if (res.status === 401) {
+        notifyUnauthorized();
+        return;
+      }
       const data = await res.json();
       if (!res.ok) {
         if (data.questionarioUrl) {

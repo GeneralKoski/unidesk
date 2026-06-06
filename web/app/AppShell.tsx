@@ -65,6 +65,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       .catch(() => setAuth(null));
   }, []);
 
+  // Sessione scaduta (401 da una API): torna al login.
+  useEffect(() => {
+    const onUnauthorized = () => setAuth(null);
+    window.addEventListener("unidesk:unauthorized", onUnauthorized);
+    return () => window.removeEventListener("unidesk:unauthorized", onUnauthorized);
+  }, []);
+
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     setAuth(null);
@@ -80,7 +87,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => setDrawerOpen(false), [pathname]);
 
   const brand = (
-    <div style={{ padding: 16 }}>
+    <div style={{ padding: 16, display: "flex", alignItems: "center", gap: 8 }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/unipr.svg" alt="" width={26} height={26} />
       <Typography.Title level={4} style={{ margin: 0 }}>
         Unidesk
       </Typography.Title>

@@ -5,13 +5,7 @@ import { useRouter } from "next/navigation";
 import { Alert, Card, Col, Empty, Row, Spin, Typography } from "antd";
 import { BookOutlined } from "@ant-design/icons";
 import type { Course } from "@unidesk/core";
-
-async function getJSON<T>(url: string): Promise<T> {
-  const res = await fetch(url);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
-  return data as T;
-}
+import { getJSON } from "@/lib/api";
 
 export default function CorsiPage() {
   const router = useRouter();

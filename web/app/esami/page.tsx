@@ -5,13 +5,7 @@ import { useRouter } from "next/navigation";
 import { Alert, Card, Col, Empty, Row, Space, Spin, Tag, Typography } from "antd";
 import { CalendarOutlined } from "@ant-design/icons";
 import type { RigaDaSostenere, TrattoCarriera } from "@unidesk/core";
-
-async function getJSON<T>(url: string): Promise<T> {
-  const res = await fetch(url);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
-  return data as T;
-}
+import { getJSON } from "@/lib/api";
 
 export default function EsamiPage() {
   const router = useRouter();

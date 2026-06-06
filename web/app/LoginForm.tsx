@@ -44,9 +44,13 @@ export default function LoginForm({
       }}
     >
       <Card style={{ width: 400, maxWidth: "100%" }}>
-        <Typography.Title level={3} style={{ marginTop: 0 }}>
-          Unidesk
-        </Typography.Title>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/unipr.svg" alt="" width={32} height={32} />
+          <Typography.Title level={3} style={{ margin: 0 }}>
+            Unidesk
+          </Typography.Title>
+        </div>
         <Typography.Paragraph type="secondary">
           Accedi con le credenziali Unipr (le stesse di Esse3 ed Elly).
         </Typography.Paragraph>

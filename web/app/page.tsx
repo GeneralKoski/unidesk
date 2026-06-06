@@ -21,13 +21,7 @@ import type {
   RigaLibretto,
   TrattoCarriera,
 } from "@unidesk/core";
-
-async function getJSON<T>(url: string): Promise<T> {
-  const res = await fetch(url);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
-  return data as T;
-}
+import { getJSON } from "@/lib/api";
 
 function carrieraLabel(t: TrattoCarriera): string {
   return `${t.cdsDes} - ${t.staStuDes}`;
