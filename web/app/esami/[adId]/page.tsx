@@ -202,6 +202,7 @@ export default function EsameDettaglioPage() {
           columns={columns}
           pagination={false}
           size="small"
+          scroll={{ x: "max-content" }}
         />
       )}
     </div>

@@ -8,7 +8,6 @@ import {
   Col,
   Row,
   Select,
-  Space,
   Spin,
   Statistic,
   Table,
@@ -163,12 +162,14 @@ export default function CarrieraPage() {
 
   return (
     <div>
-      <Space
-        align="center"
+      <div
         style={{
           marginBottom: 24,
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 12,
+          alignItems: "center",
           justifyContent: "space-between",
-          width: "100%",
         }}
       >
         <Typography.Title level={3} style={{ margin: 0 }}>
@@ -186,14 +187,14 @@ export default function CarrieraPage() {
           <Select
             value={matId ?? undefined}
             onChange={setMatId}
-            style={{ minWidth: 320 }}
+            style={{ width: "100%", maxWidth: 320 }}
             options={carriere.map((t) => ({
               value: t.matId,
               label: carrieraLabel(t),
             }))}
           />
         )}
-      </Space>
+      </div>
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col xs={12} md={6}>
@@ -229,6 +230,7 @@ export default function CarrieraPage() {
           columns={colSuperate}
           pagination={false}
           size="small"
+          scroll={{ x: "max-content" }}
           loading={librettoLoading}
         />
       </Card>
@@ -251,6 +253,7 @@ export default function CarrieraPage() {
           columns={colDaFare}
           pagination={false}
           size="small"
+          scroll={{ x: "max-content" }}
           loading={librettoLoading || dsLoading}
           onRow={(r) => ({
             style: { cursor: "pointer" },
