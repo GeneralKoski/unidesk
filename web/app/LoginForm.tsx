@@ -6,7 +6,7 @@ import { Alert, Button, Card, Form, Input, Typography } from "antd";
 export default function LoginForm({
   onSuccess,
 }: {
-  onSuccess: (user: string) => void;
+  onSuccess: (data: { user: string; matricola: string | null }) => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +25,7 @@ export default function LoginForm({
         setError(data.error ?? "Login fallito");
         return;
       }
-      onSuccess(data.user);
+      onSuccess({ user: data.user, matricola: data.matricola ?? null });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -74,7 +74,10 @@ export default function LoginForm({
             label="Password"
             rules={[{ required: true, message: "Inserisci la password" }]}
           >
-            <Input.Password autoComplete="current-password" />
+            <Input.Password
+              autoComplete="current-password"
+              placeholder="********"
+            />
           </Form.Item>
           <Button type="primary" htmlType="submit" block loading={loading}>
             Accedi

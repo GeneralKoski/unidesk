@@ -3,7 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { App, Button, Drawer, Grid, Layout, Menu, Space, Spin, Typography } from "antd";
+import {
+  App,
+  Button,
+  Drawer,
+  Grid,
+  Layout,
+  Menu,
+  Space,
+  Spin,
+  Typography,
+} from "antd";
 import {
   BookOutlined,
   CalendarOutlined,
@@ -34,12 +44,16 @@ const ITEMS = [
       },
     ],
   },
-  { key: "/corsi", icon: <BookOutlined />, label: <Link href="/corsi">Elly</Link> },
+  {
+    key: "/corsi",
+    icon: <BookOutlined />,
+    label: <Link href="/corsi">Elly</Link>,
+  },
 ];
 
 const SIDER_WIDTH = 200;
 
-type Auth = "loading" | { user: string } | null;
+type Auth = "loading" | { user: string; matricola: string | null } | null;
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -51,7 +65,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     fetch("/api/auth/me")
       .then((r) => r.json())
-      .then((d) => setAuth(d.authenticated ? { user: d.user } : null))
+      .then((d) =>
+        setAuth(
+          d.authenticated
+            ? { user: d.user, matricola: d.matricola ?? null }
+            : null,
+        ),
+      )
       .catch(() => setAuth(null));
   }, []);
 
@@ -87,10 +107,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   if (auth === "loading") {
-    return <Spin size="large" style={{ display: "block", marginTop: "20vh" }} />;
+    return (
+      <Spin size="large" style={{ display: "block", marginTop: "20vh" }} />
+    );
   }
   if (auth === null) {
-    return <LoginForm onSuccess={(user) => setAuth({ user })} />;
+    return <LoginForm onSuccess={(data) => setAuth(data)} />;
   }
 
   return (
@@ -153,7 +175,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </Typography.Text>
           <Space style={{ marginInlineStart: "auto" }}>
             {!isMobile && (
-              <Typography.Text type="secondary">{auth.user}</Typography.Text>
+              <Typography.Text type="secondary">
+                {auth.user}
+                {auth.matricola && ` · Matricola ${auth.matricola}`}
+              </Typography.Text>
             )}
             <Button
               type="text"

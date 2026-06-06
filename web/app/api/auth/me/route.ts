@@ -9,5 +9,6 @@ export async function GET() {
   return NextResponse.json({
     authenticated: Boolean(session.user),
     user: session.user ?? null,
+    matricola: session.matricola ?? null,
   });
 }

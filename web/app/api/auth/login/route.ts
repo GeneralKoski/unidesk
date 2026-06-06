@@ -13,18 +13,22 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
-  // Valida le credenziali contro Esse3 prima di salvarle in sessione.
+  // Valida le credenziali contro Esse3 e recupera la matricola della carriera.
+  let matricola: string | undefined;
   try {
-    await new Esse3Client({ base: esse3Base(), user, pass }).login();
+    const carriere = await new Esse3Client({ base: esse3Base(), user, pass }).getCarriere();
+    const attiva = carriere.find((t) => t.staStuCod === "A") ?? carriere[0];
+    matricola = attiva?.matricola;
   } catch {
     return NextResponse.json(
-      { error: "Credenziali non valide (login Esse3 fallito)." },
+      { error: "Credenziali non valide." },
       { status: 401 },
     );
   }
   const session = await getSession();
   session.user = user;
   session.pass = pass;
+  session.matricola = matricola;
   await session.save();
-  return NextResponse.json({ ok: true, user });
+  return NextResponse.json({ ok: true, user, matricola: matricola ?? null });
 }

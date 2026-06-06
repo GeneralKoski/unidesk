@@ -13,6 +13,7 @@ import {
 export interface SessionData {
   user?: string;
   pass?: string;
+  matricola?: string;
 }
 
 function options(): SessionOptions {

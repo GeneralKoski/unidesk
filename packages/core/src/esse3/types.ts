@@ -1,5 +1,6 @@
 export interface TrattoCarriera {
   matId: number;
+  matricola: string;
   cdsDes: string;
   staStuCod: string; // "A" = attivo, "X" = cessato
   staStuDes: string;
