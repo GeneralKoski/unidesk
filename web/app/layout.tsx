@@ -3,7 +3,7 @@ import { AntdRegistry } from "@ant-design/nextjs-registry";
 import AppShell from "./AppShell";
 
 export const metadata: Metadata = {
-  title: "unidesk",
+  title: "Unidesk",
   description:
     "Scrivania universitaria - Esse3 ed Elly da un'unica interfaccia.",
 };

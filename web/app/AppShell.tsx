@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { App, Button, Drawer, Grid, Layout, Menu, Typography } from "antd";
 import {
+  BookOutlined,
   CalendarOutlined,
   DashboardOutlined,
   MenuOutlined,
@@ -31,13 +32,7 @@ const ITEMS = [
       },
     ],
   },
-  // Elly (Moodle) — da implementare/verificare (token mobile). Riabilitare
-  // questa voce quando il modulo è pronto; la pagina /corsi resta nel codice.
-  // {
-  //   key: "/corsi",
-  //   icon: <BookOutlined />,
-  //   label: <Link href="/corsi">Elly</Link>,
-  // },
+  { key: "/corsi", icon: <BookOutlined />, label: <Link href="/corsi">Elly</Link> },
 ];
 
 const SIDER_WIDTH = 200;
@@ -60,7 +55,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const brand = (
     <div style={{ padding: 16 }}>
       <Typography.Title level={4} style={{ margin: 0 }}>
-        unidesk
+        Unidesk
       </Typography.Title>
     </div>
   );
@@ -100,7 +95,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           onClose={() => setDrawerOpen(false)}
           width={SIDER_WIDTH}
           styles={{ body: { padding: 0 } }}
-          title="unidesk"
+          title="Unidesk"
         >
           {menu}
         </Drawer>

@@ -9,7 +9,8 @@ le espone come tool MCP, più una UI web per consultarle.
   Esse3/Elly: sia `unimcp` sia `web` importano da `@unidesk/core`. Non duplicare
   la logica HTTP altrove.
   - `esse3/client.ts` - Basic Auth stateless (header ricalcolato a ogni call).
-  - `elly/client.ts` - token Moodle con **refresh automatico** su token scaduto.
+  - `elly/client.ts` - login **Shibboleth SSO** via fetch → sessione Moodle +
+    sesskey, API AJAX interne; sessione condivisa con **refresh automatico**.
   - `config.ts` - credenziali dal `.env` alla root (mai hardcoded).
 - `unimcp/` - server MCP (stdio). Tool: `status`, `esse3_carriere`,
   `esse3_libretto`, `esse3_appelli`, `elly_courses`, `elly_course_contents`.

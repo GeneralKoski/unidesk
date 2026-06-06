@@ -22,18 +22,15 @@ async function getJSON<T>(url: string): Promise<T> {
 }
 
 function ModuleItem({ m }: { m: Module }) {
-  const file = m.contents?.find((c) => c.fileurl);
-  if (file) {
-    return (
-      <a href={file.fileurl} target="_blank" rel="noreferrer">
-        <FileOutlined /> {m.name}
-      </a>
-    );
-  }
+  const isFile = m.modname === "resource" || m.modname === "folder";
+  const icon = isFile ? <FileOutlined /> : <LinkOutlined />;
   if (m.url) {
+    // Passa dal proxy: scarica col cookie di sessione server-side; i moduli
+    // "url" vengono reindirizzati alla destinazione esterna.
+    const href = `/api/elly/file?url=${encodeURIComponent(m.url)}`;
     return (
-      <a href={m.url} target="_blank" rel="noreferrer">
-        <LinkOutlined /> {m.name}
+      <a href={href} target="_blank" rel="noreferrer">
+        {icon} {m.name}
       </a>
     );
   }
@@ -116,7 +113,7 @@ export default function CorsiPage() {
         accordion
         items={courses.map((c) => ({
           key: String(c.id),
-          label: c.fullname ?? c.displayname ?? c.shortname,
+          label: c.fullname ?? c.shortname,
           children: <CourseContents courseid={c.id} />,
         }))}
       />

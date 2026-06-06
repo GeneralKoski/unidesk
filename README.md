@@ -44,8 +44,10 @@ Fonti   ── Esse3 (REST) · Elly (Moodle) · GitHub · Filesystem
   credenziali reali: `login` → carriera attiva → libretto + media ponderata →
   appelli (`calesa`) → **prenotazione e disiscrizione** a un appello (con
   conferma esplicita; gestito anche il blocco "questionario OPIS da compilare").
-* **Elly: da fare.** Client su token mobile implementato ma non ancora
-  verificato; la voce di menu è disattivata finché il modulo non è pronto.
+* **Elly: confermato funzionante.** Dietro Shibboleth SSO (niente token mobile):
+  login automatizzato all'IdP Unipr via fetch → sessione Moodle → API AJAX
+  interne. Verificato end-to-end: elenco corsi, contenuti (sezioni/moduli) e
+  **download materiali** tramite proxy server-side.
 
 ## Fonti dati
 
@@ -80,20 +82,29 @@ Mapping dei campi rilevanti del libretto:
 | `numPrenotazioni`              | `> 0`= già prenotato                                  |
 | `chiaveADContestualizzata`     | contiene `adId`,`afId`,`cdsId`per `calesa`       |
 
-### Elly - Moodle (DA VERIFICARE)
+### Elly - Moodle (Shibboleth SSO)
 
-Prima di pensare allo scraping, testare l'endpoint del web service mobile:
+Elly Unipr è dietro **Shibboleth SSO** (IdP `shibidp.unipr.it`, stesse
+credenziali Unipr di Esse3). Il token mobile (`/login/token.php`) **non**
+funziona: gli account SSO non hanno password Moodle locale (`invalidlogin`) e il
+flusso mobile launch è disabilitato. Si automatizza quindi il login SSO via
+`fetch` (zero dipendenze, niente browser):
 
-```
-GET /login/token.php?username=...&password=...&service=moodle_mobile_app
-```
+1. `POST /auth/shibboleth/login.php` con `idp` → interstiziale IdP (si supera
+   con `shib_idp_ls_supported=false`).
+2. Form IdP: `POST` con `j_username`/`j_password` → `SAMLResponse`.
+3. Auto-submit della `SAMLResponse` al SP → sessione Moodle (`MoodleSession`) +
+   `sesskey` estratto dalla pagina.
 
-* Token in risposta → si apre la REST API Moodle completa
-  (`core_course_get_contents`, `mod_resource_*`, ecc.): dati strutturati, niente
-  HTML da parsare.
-* Errore → fallback su automazione browser (Playwright) con login a due campi.
+Con la sessione si chiamano le **API AJAX interne** (`/lib/ajax/service.php`):
 
-L'esito di questo test cambia il dimensionamento del lavoro: va fatto presto.
+* `core_course_get_enrolled_courses_by_timeline_classification` → elenco corsi.
+* `core_courseformat_get_state` → sezioni + moduli (nome, tipo, url). NB:
+  `core_*_get_contents` non è AJAX-callable, questo lo sostituisce.
+* Download materiali: proxy server-side (`/api/elly/file`) che segue i redirect
+  Moodle col cookie di sessione e serve il file (il browser non ha la sessione).
+  Solo tipi sicuri inline; HTML/SVG forzati a download (anti-XSS), host validato
+  (anti-SSRF). La sessione è condivisa tra le richieste e rinnovata se scade.
 
 ## Sicurezza (non negoziabile)
 
@@ -132,8 +143,8 @@ npm run mcp
 ```
 
 Le credenziali si leggono **solo** dal `.env` alla root, lette server-side: la
-login è automatica e per Elly il token Moodle viene rinnovato da solo quando
-scade - niente login manuale ripetuta.
+login è automatica (Basic Auth per Esse3, SSO Shibboleth per Elly) e la sessione
+Elly viene rinnovata da sola quando scade - niente login manuale ripetuta.
 
 ## Struttura
 
@@ -168,7 +179,7 @@ unidesk/
 * [X] Server `unimcp`: wrapping dei tool confermati (sola lettura)
 * [X] `calesa`: appelli + stato prenotazioni (confermato live)
 * [X] Prenotazione/disiscrizione appelli (scrittura, **con conferma esplicita**)
-* [ ] Elly: verifica token mobile vs Playwright (voce UI disattivata)
+* [X] Elly: login SSO Shibboleth + corsi/contenuti + proxy download materiali
 * [ ] Skill per i workflow + `CLAUDE.md` per corso
 * [ ] Compilatore questionario OPIS in-app (ora: avviso + link a Esse3)
 * [ ] Migrazione credenziali da env a keychain

@@ -8,7 +8,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { Esse3Client, EllyClient, credentialStatus } from "@unidesk/core";
+import { Esse3Client, ellyClient, credentialStatus } from "@unidesk/core";
 
 const server = new McpServer({ name: "unimcp", version: "0.1.0" });
 
@@ -107,7 +107,7 @@ server.registerTool(
   },
   async () => {
     try {
-      return json(await new EllyClient().getCourses());
+      return json(await ellyClient().getCourses());
     } catch (err) {
       return fail(err);
     }
@@ -126,7 +126,7 @@ server.registerTool(
   },
   async ({ courseid }) => {
     try {
-      return json(await new EllyClient().getCourseContents(courseid));
+      return json(await ellyClient().getCourseContents(courseid));
     } catch (err) {
       return fail(err);
     }
