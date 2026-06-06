@@ -3,14 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { App, Button, Drawer, Grid, Layout, Menu, Typography } from "antd";
+import { App, Button, Drawer, Grid, Layout, Menu, Space, Spin, Typography } from "antd";
 import {
   BookOutlined,
   CalendarOutlined,
   DashboardOutlined,
+  LogoutOutlined,
   MenuOutlined,
   ReadOutlined,
 } from "@ant-design/icons";
+import LoginForm from "./LoginForm";
 
 const { Header, Content, Sider } = Layout;
 
@@ -37,11 +39,26 @@ const ITEMS = [
 
 const SIDER_WIDTH = 200;
 
+type Auth = "loading" | { user: string } | null;
+
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.lg;
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [auth, setAuth] = useState<Auth>("loading");
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((d) => setAuth(d.authenticated ? { user: d.user } : null))
+      .catch(() => setAuth(null));
+  }, []);
+
+  const logout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    setAuth(null);
+  };
 
   const selected = useMemo(() => {
     if (pathname.startsWith("/esami")) return "/esami";
@@ -68,6 +85,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       items={ITEMS}
     />
   );
+
+  if (auth === "loading") {
+    return <Spin size="large" style={{ display: "block", marginTop: "20vh" }} />;
+  }
+  if (auth === null) {
+    return <LoginForm onSuccess={(user) => setAuth({ user })} />;
+  }
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -127,6 +151,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <Typography.Text type="secondary">
             Università di Parma · Scienze Informatiche
           </Typography.Text>
+          <Space style={{ marginInlineStart: "auto" }}>
+            {!isMobile && (
+              <Typography.Text type="secondary">{auth.user}</Typography.Text>
+            )}
+            <Button
+              type="text"
+              icon={<LogoutOutlined />}
+              onClick={logout}
+              aria-label="Esci"
+            >
+              {!isMobile && "Esci"}
+            </Button>
+          </Space>
         </Header>
         <Content style={{ margin: 24 }}>
           <App>{children}</App>

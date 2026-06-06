@@ -1,12 +1,10 @@
 export {
   loadEnv,
-  esse3Config,
+  esse3Base,
   esse3WebBase,
-  ellyConfig,
-  credentialStatus,
+  ellyBase,
   type Esse3Config,
   type EllyConfig,
-  type CredentialStatus,
 } from "./config.js";
 
 export { Esse3Client } from "./esse3/client.js";

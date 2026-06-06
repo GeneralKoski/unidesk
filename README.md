@@ -1,40 +1,28 @@
 # unidesk
 
-Scrivania di lavoro automatizzata per i corsi universitari. Un orchestratore con
-agenti specializzati che integra le fonti dell'ateneo - Elly (Moodle) ed Esse3 -
-e per ogni esame costruisce un ambiente completo: scarica e organizza i materiali,
-sintetizza i PDF, scrive ed esegue codice, tiene traccia di date e prenotazioni.
+Web app che mette insieme le fonti dell'ateneo — Esse3 ed Elly (Moodle) — in
+un'unica interfaccia: carriera e libretto, prenotazione appelli, corsi e
+materiali. Ogni utente accede con le proprie credenziali Unipr.
 
 Università di Parma · Laurea Magistrale in Scienze Informatiche.
-
-## Cos'è (e cosa non è)
-
-`unidesk` non è "lo script per Esse3". È il livello che mette insieme tutte le
-fonti universitarie e le espone a un orchestratore (Claude Code) che coordina
-agenti e sub-agenti. Le singole API (Esse3, Elly) sono dettagli di
-implementazione dietro un'interfaccia stabile.
-
-Due concetti distinti convivono nella repo:
-
-* **unimcp** - il server MCP che parla con Esse3, Elly, GitHub e il filesystem,
-  ed espone tutto come tool.
-* **orchestratore** - Claude Code + skill che usano quei tool per fare il lavoro
-  vero, un corso alla volta.
 
 ## Architettura
 
 ```
-Orchestratore (Claude Code)
-        │  coordina e fa spawn di sub-agenti
+Browser (Next.js + Ant Design)
+        │  fetch alle API route
         ▼
-Agenti  ── Materiali · Codice · Riassunti · Esami
-        │  ogni agente chiama gli stessi tool
-        ▼
-Server MCP (unimcp)
+API route server-side (Next.js)  ── credenziali dalla sessione cifrata
         │
         ▼
-Fonti   ── Esse3 (REST) · Elly (Moodle) · GitHub · Filesystem
+@unidesk/core  ── client Esse3 (REST) e Elly (Moodle via SSO)
+        │
+        ▼
+Fonti   ── Esse3 (e3rest) · Elly (Moodle Shibboleth)
 ```
+
+Le credenziali non lasciano mai il server: le API route girano in Node, leggono
+le credenziali dalla sessione e chiamano Esse3/Elly per conto dell'utente.
 
 ## Stato attuale
 
@@ -106,80 +94,69 @@ Con la sessione si chiamano le **API AJAX interne** (`/lib/ajax/service.php`):
   Solo tipi sicuri inline; HTML/SVG forzati a download (anti-XSS), host validato
   (anti-SSRF). La sessione è condivisa tra le richieste e rinnovata se scade.
 
-## Sicurezza (non negoziabile)
+## Sicurezza
 
 Questo progetto maneggia credenziali universitarie reali. Regole vincolanti:
 
-* Credenziali **solo** da variabili d'ambiente o keychain di sistema. Mai
-  hardcoded nel codice, mai passate come argomento da riga di comando (finiscono
-  nella shell history e in `ps aux`).
-* `.gitignore` deve escludere `.env`, file di credenziali e `node_modules`
-  **prima** del primo commit.
-* Repo  **privata** .
-* Nessun identificativo personale (matId, codice fiscale, matricola) committato:
-  si scoprono a runtime dal `login`.
-* Le **scritture** (es. prenotazione di un appello, POST su `calesa`) richiedono
-  una conferma esplicita prima di essere eseguite. Mai prenotare in automatico
-  senza un "sì" intenzionale.
+* **Login per utente**: ogni utente inserisce le proprie credenziali Unipr. Sono
+  validate su Esse3 e poi conservate **cifrate** in un cookie di sessione
+  (`iron-session`, httpOnly): JS non le legge, solo il server le decifra.
+* **Niente credenziali nel codice o nel `.env`** per la web app. Nel `.env` solo
+  `SESSION_SECRET` (chiave di cifratura) e le base URL.
+* `.gitignore` esclude `.env` e `node_modules`. Repo **privata**.
+* Nessun identificativo personale (matId, CF, matricola) committato: si scoprono
+  a runtime dal login.
+* Le **scritture** (prenotazione/disiscrizione appelli) richiedono conferma
+  esplicita nell'interfaccia.
+* L'app fa da **broker** delle password Unipr (Esse3/Elly non offrono token):
+  chi gestisce il server può tecnicamente accedervi → va servita in HTTPS e gli
+  utenti devono fidarsi del deployment.
 
 ## Avvio rapido
 
 Prerequisiti: Node 22+.
 
 ```bash
-# 1. dipendenze (monorepo a workspace npm: installa core, unimcp e web)
+# 1. dipendenze (monorepo a workspace npm)
 npm install
 
-# 2. credenziali - mai committate (.env è in .gitignore)
+# 2. configurazione (.env è in .gitignore)
 cp .env.example .env
-#    poi compila ESSE3_* ed ELLY_* nel .env.
-#    NB: verifica ELLY_BASE - l'URL del Moodle cambia per dipartimento/anno.
+#    genera SESSION_SECRET (>= 32 caratteri):
+#    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+#    ESSE3_BASE/ELLY_BASE hanno già default Unipr.
 
-# 3a. interfaccia web (Esse3 + Elly da browser) → http://localhost:3000
+# 3. interfaccia web → http://localhost:3000
 npm run web
-
-# 3b. server MCP (per l'orchestratore Claude Code), su stdio
-npm run mcp
 ```
 
-Le credenziali si leggono **solo** dal `.env` alla root, lette server-side: la
-login è automatica (Basic Auth per Esse3, SSO Shibboleth per Elly) e la sessione
-Elly viene rinnovata da sola quando scade - niente login manuale ripetuta.
+All'avvio l'app mostra il **login**: si entra con le credenziali Unipr (le stesse
+di Esse3/Elly). La sessione dura 30 giorni; per Elly la sessione Moodle viene
+rinnovata da sola quando scade.
 
 ## Struttura
 
 ```
 unidesk/
-  .env.example          # nomi delle variabili, senza valori
-  package.json          # workspace: packages/* + unimcp + web
-  packages/core/        # client condivisi (unica fonte): config, Esse3, Elly
-  unimcp/               # server MCP: espone i client come tool (sola lettura)
-  web/                  # Next.js 15 + Ant Design: UI + API route server-side
-  skills/               # (previsto) workflow ricorrenti: download, sintesi, ...
-  corsi/                # (previsto)
-    <nome-corso>/
-      .corso.yaml       # docente, CFU, date, id su Esse3/Elly
-      CLAUDE.md         # istruzioni specifiche del corso
-      materiali/        # PDF scaricati da Elly
-      appunti/  codice/  riassunti/
+  .env.example          # SESSION_SECRET + base URL
+  package.json          # workspace: packages/* + web
+  packages/core/        # client condivisi: config, Esse3, Elly
+  web/                  # Next.js 15 + Ant Design: UI + API route + auth/sessione
 ```
 
 ## Stack
 
-* Node 22, TypeScript, esecuzione con `tsx` (nessuna build per gli spike).
-* `@modelcontextprotocol/sdk` per il server MCP.
-* Claude Code come orchestratore (Task tool per i sub-agenti, skill per i
-  workflow).
-* Zero dipendenze runtime dove possibile: `fetch` e `Buffer` sono nativi.
+* Node 22, TypeScript.
+* Next.js 15 (App Router) + Ant Design.
+* `iron-session` per la sessione cifrata.
+* Zero dipendenze runtime dove possibile nel core: `fetch` e `Buffer` sono nativi.
 
 ## Roadmap
 
-* [X] Spike Esse3: login → carriera attiva → libretto
-* [X] Client Esse3/Elly condivisi (`packages/core`) + UI web (Next.js + AntD)
-* [X] Server `unimcp`: wrapping dei tool confermati (sola lettura)
-* [X] `calesa`: appelli + stato prenotazioni (confermato live)
-* [X] Prenotazione/disiscrizione appelli (scrittura, **con conferma esplicita**)
+* [X] Esse3: carriera, libretto, media ponderata
+* [X] `calesa`: appelli + stato prenotazioni; prenotazione/disiscrizione (con conferma)
 * [X] Elly: login SSO Shibboleth + corsi/contenuti + proxy download materiali
-* [ ] Skill per i workflow + `CLAUDE.md` per corso
+* [X] UI web (Next.js + AntD): dashboard, esami, corsi
+* [X] Login multi-utente con sessione cifrata in cookie
 * [ ] Compilatore questionario OPIS in-app (ora: avviso + link a Esse3)
-* [ ] Migrazione credenziali da env a keychain
+* [ ] Deploy pubblico (HTTPS) per i colleghi

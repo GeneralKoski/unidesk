@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { Esse3Client } from "@unidesk/core";
+import { esse3OrNull } from "@/lib/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  const client = await esse3OrNull();
+  if (!client) return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
   try {
-    const client = new Esse3Client();
     const param = new URL(req.url).searchParams.get("matId");
     const matId = param ? Number(param) : (await client.getActiveCareer()).matId;
     return NextResponse.json(await client.getLibretto(matId));

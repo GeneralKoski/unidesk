@@ -1,4 +1,4 @@
-import { ellyConfig, type EllyConfig } from "../config.js";
+import type { EllyConfig } from "../config.js";
 import type { Course, Module, Section } from "./types.js";
 
 // Elly (Moodle Unipr) è dietro Shibboleth SSO: niente token mobile (gli account
@@ -32,11 +32,17 @@ function parseForm(html: string, idx = 0): { action: string; inputs: Record<stri
   return { action, inputs };
 }
 
-// Istanza condivisa: il login SSO è costoso (più round-trip), quindi si riusa
-// la sessione tra le richieste e si rifà solo quando scade.
-let shared: EllyClient | undefined;
-export function ellyClient(): EllyClient {
-  return (shared ??= new EllyClient());
+// Cache per-utente: il login SSO è costoso (più round-trip), quindi si riusa
+// la sessione Moodle tra le richieste, separata per ogni utente, e si rifà solo
+// quando scade. La chiave è l'username (le credenziali arrivano dalla sessione).
+const clients = new Map<string, EllyClient>();
+export function ellyClient(cfg: EllyConfig): EllyClient {
+  let c = clients.get(cfg.user);
+  if (!c) {
+    c = new EllyClient(cfg);
+    clients.set(cfg.user, c);
+  }
+  return c;
 }
 
 interface Session {
@@ -47,7 +53,7 @@ interface Session {
 export class EllyClient {
   private session?: Session;
 
-  constructor(private readonly cfg: EllyConfig = ellyConfig()) {}
+  constructor(private readonly cfg: EllyConfig) {}
 
   private async login(): Promise<Session> {
     const jar: Record<string, string> = {};

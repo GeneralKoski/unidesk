@@ -1,4 +1,4 @@
-import { esse3Config, type Esse3Config } from "../config.js";
+import type { Esse3Config } from "../config.js";
 import type {
   Appello,
   AppelloConStato,
@@ -29,7 +29,7 @@ function startOfTodayUTC(): number {
 export class Esse3Client {
   private readonly auth: string;
 
-  constructor(private readonly cfg: Esse3Config = esse3Config()) {
+  constructor(private readonly cfg: Esse3Config) {
     this.auth =
       "Basic " + Buffer.from(`${cfg.user}:${cfg.pass}`).toString("base64");
   }
