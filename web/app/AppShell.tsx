@@ -3,17 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  App,
-  Button,
-  Drawer,
-  Grid,
-  Layout,
-  Menu,
-  Space,
-  Spin,
-  Typography,
-} from "antd";
+import { App, Button, Drawer, Grid, Layout, Menu, Spin, Typography } from "antd";
 import {
   BookOutlined,
   CalendarOutlined,
@@ -170,16 +160,27 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               aria-label="Apri menu"
             />
           )}
-          <Typography.Text type="secondary">
-            Università di Parma · Scienze Informatiche
-          </Typography.Text>
-          <Space style={{ marginInlineStart: "auto" }}>
-            {!isMobile && (
-              <Typography.Text type="secondary">
-                {auth.user}
-                {auth.matricola && ` · Matricola ${auth.matricola}`}
-              </Typography.Text>
-            )}
+          <div
+            style={{
+              marginInlineStart: "auto",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              minWidth: 0,
+            }}
+          >
+            <span
+              style={{
+                color: "rgba(0, 0, 0, 0.45)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                maxWidth: "55vw",
+              }}
+            >
+              {auth.user}
+              {auth.matricola && ` · Matricola ${auth.matricola}`}
+            </span>
             <Button
               type="text"
               icon={<LogoutOutlined />}
@@ -188,7 +189,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             >
               {!isMobile && "Esci"}
             </Button>
-          </Space>
+          </div>
         </Header>
         <Content style={{ margin: 24 }}>
           <App>{children}</App>
