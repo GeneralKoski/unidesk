@@ -36,5 +36,5 @@ interfaccia, con login per utente. Monorepo a workspace npm: `packages/core` +
 - Le **scritture** (prenotazione/disiscrizione appelli) richiedono conferma
   esplicita nell'interfaccia.
 - Nessun dato personale (matId, matricola, CF) committato: si scopre a runtime.
-- Repo privata; `.env` e `node_modules` in `.gitignore`. Servire in HTTPS in
+- Repo pubblica; `.env` e `node_modules` in `.gitignore`. Servire in HTTPS in
   produzione (cookie `secure`).
