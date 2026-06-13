@@ -20,7 +20,7 @@ export interface RigaLibretto {
   peso: number; // CFU
   tipoInsDes: string; // Obbligatorio / Opzionale
   stato: { value: string }; // "S" superata, "F" frequentata
-  esito: { voto: number | null; dataEsa: string };
+  esito: { voto: number | null; dataEsa: string; lode?: boolean };
   numAppelliPrenotabili: number;
   numPrenotazioni: number;
   adsceId: number; // id AD-scelta dello studente, serve per la prenotazione

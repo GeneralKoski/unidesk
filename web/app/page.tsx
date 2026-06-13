@@ -168,7 +168,10 @@ export default function CarrieraPage() {
       width: 90,
       render: (_: unknown, r: RigaLibretto) =>
         r.esito.voto != null ? (
-          <Tag color="green">{r.esito.voto}</Tag>
+          <Tag color="green">
+            {r.esito.voto}
+            {r.esito.lode ? "L" : ""}
+          </Tag>
         ) : (
           <Tag>idoneo</Tag>
         ),
@@ -300,7 +303,9 @@ export default function CarrieraPage() {
                       color={r.esito.voto != null ? "green" : undefined}
                       style={{ marginRight: 0, flexShrink: 0 }}
                     >
-                      {r.esito.voto ?? "idoneo"}
+                      {r.esito.voto != null
+                        ? `${r.esito.voto}${r.esito.lode ? "L" : ""}`
+                        : "idoneo"}
                     </Tag>
                   </div>
                   <Space size={[8, 4]} wrap style={{ marginTop: 6 }}>

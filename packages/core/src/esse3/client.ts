@@ -95,6 +95,15 @@ export class Esse3Client {
 
   async getLibretto(matId: number): Promise<Libretto> {
     const righe = await this.getLibrettoRighe(matId);
+
+    // La lode è un flag a parte nell'esito (non nel voto). Il nome del campo
+    // varia tra atenei CINECA: si controllano i più comuni e si normalizza.
+    for (const r of righe) {
+      const e = r.esito as Record<string, unknown>;
+      const flag = e.lodeFlg ?? e.lode ?? e.votoLode ?? e.lodeFl;
+      r.esito.lode =
+        flag === true || flag === 1 || flag === "1" || flag === "S" || flag === "L";
+    }
     const superate = righe.filter((r) => r.stato.value === "S");
     const daFare = righe.filter((r) => r.stato.value !== "S");
 
