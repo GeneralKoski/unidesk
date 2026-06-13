@@ -173,7 +173,7 @@ export default function CarrieraPage() {
             {r.esito.lode ? "L" : ""}
           </Tag>
         ) : (
-          <Tag>idoneo</Tag>
+          <Tag>Idoneo</Tag>
         ),
     },
     {
@@ -198,9 +198,9 @@ export default function CarrieraPage() {
           <Tag color="orange">Su Esse3</Tag>
         ) : r.prenotazione?.prenotabili > 0 ? (
           <Tag color="gold">
-          {r.prenotazione.prenotabili}{" "}
-          {r.prenotazione.prenotabili === 1 ? "prenotabile" : "prenotabili"}
-        </Tag>
+            {r.prenotazione.prenotabili}{" "}
+            {r.prenotazione.prenotabili === 1 ? "prenotabile" : "prenotabili"}
+          </Tag>
         ) : (
           <Tag>Nessun appello</Tag>
         ),
@@ -266,17 +266,25 @@ export default function CarrieraPage() {
         </Col>
         <Col xs={12} md={6}>
           <Card style={{ height: "100%" }}>
+            <Statistic
+              title="Voto di partenza"
+              value={s?.mediaPonderata ? (s.mediaPonderata / 30) * 110 : 0}
+              precision={2}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card style={{ height: "100%" }}>
             <Statistic title="CFU acquisiti" value={s?.cfuFatti ?? 0} />
           </Card>
         </Col>
         <Col xs={12} md={6}>
           <Card style={{ height: "100%" }}>
-            <Statistic title="Esami superati" value={s?.esamiSuperati ?? 0} />
-          </Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card style={{ height: "100%" }}>
-            <Statistic title="Esami da fare" value={s?.esamiDaFare ?? 0} />
+            <Statistic
+              title="Esami superati"
+              value={s?.esamiSuperati ?? 0}
+              suffix={`/ ${(s?.esamiSuperati ?? 0) + (s?.esamiDaFare ?? 0)}`}
+            />
           </Card>
         </Col>
       </Row>
@@ -305,7 +313,7 @@ export default function CarrieraPage() {
                     >
                       {r.esito.voto != null
                         ? `${r.esito.voto}${r.esito.lode ? "L" : ""}`
-                        : "idoneo"}
+                        : "Idoneo"}
                     </Tag>
                   </div>
                   <Space size={[8, 4]} wrap style={{ marginTop: 6 }}>
