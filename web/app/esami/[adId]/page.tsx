@@ -8,6 +8,8 @@ import {
   App,
   Button,
   Empty,
+  Grid,
+  List,
   Popconfirm,
   Space,
   Spin,
@@ -21,7 +23,11 @@ import { notifyUnauthorized } from "@/lib/api";
 
 const fmt = (d: string | undefined) => (d ? d.slice(0, 10) : "-");
 
+const { useBreakpoint } = Grid;
+
 export default function EsameDettaglioPage() {
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
   const { adId } = useParams<{ adId: string }>();
   const sp = useSearchParams();
   const matId = sp.get("matId");
@@ -102,6 +108,45 @@ export default function EsameDettaglioPage() {
     }
   };
 
+  const renderAzione = (a: AppelloConStato) => {
+    if (a.prenotato) {
+      return (
+        <Space>
+          <Tag color="green">Prenotato</Tag>
+          <Popconfirm
+            title="Disiscriverti da questo appello?"
+            okText="Disiscriviti"
+            okButtonProps={{ danger: true }}
+            cancelText="Annulla"
+            onConfirm={() => act(a, "disiscrivi")}
+          >
+            <Button size="small" danger loading={busy === a.appId}>
+              Disiscriviti
+            </Button>
+          </Popconfirm>
+        </Space>
+      );
+    }
+    if (a.prenotabile) {
+      return (
+        <Popconfirm
+          title="Confermi la prenotazione a questo appello?"
+          okText="Prenota"
+          cancelText="Annulla"
+          onConfirm={() => act(a, "prenota")}
+        >
+          <Button size="small" type="primary" loading={busy === a.appId}>
+            Prenota
+          </Button>
+        </Popconfirm>
+      );
+    }
+    if (a.iscrizioni === "futura") {
+      return <Tag color="default">Apre il {fmt(a.dataInizioIscr)}</Tag>;
+    }
+    return <Tag>Prenotazioni chiuse</Tag>;
+  };
+
   const columns = [
     {
       title: "Data esame",
@@ -120,44 +165,7 @@ export default function EsameDettaglioPage() {
       title: "Azione",
       key: "azione",
       width: 220,
-      render: (_: unknown, a: AppelloConStato) => {
-        if (a.prenotato) {
-          return (
-            <Space>
-              <Tag color="green">Prenotato</Tag>
-              <Popconfirm
-                title="Disiscriverti da questo appello?"
-                okText="Disiscriviti"
-                okButtonProps={{ danger: true }}
-                cancelText="Annulla"
-                onConfirm={() => act(a, "disiscrivi")}
-              >
-                <Button size="small" danger loading={busy === a.appId}>
-                  Disiscriviti
-                </Button>
-              </Popconfirm>
-            </Space>
-          );
-        }
-        if (a.prenotabile) {
-          return (
-            <Popconfirm
-              title="Confermi la prenotazione a questo appello?"
-              okText="Prenota"
-              cancelText="Annulla"
-              onConfirm={() => act(a, "prenota")}
-            >
-              <Button size="small" type="primary" loading={busy === a.appId}>
-                Prenota
-              </Button>
-            </Popconfirm>
-          );
-        }
-        if (a.iscrizioni === "futura") {
-          return <Tag color="default">Apre il {fmt(a.dataInizioIscr)}</Tag>;
-        }
-        return <Tag>Prenotazioni chiuse</Tag>;
-      },
+      render: (_: unknown, a: AppelloConStato) => renderAzione(a),
     },
   ];
 
@@ -195,16 +203,52 @@ export default function EsameDettaglioPage() {
       {!error && appelli && appelli.length === 0 && (
         <Empty description="Nessun appello disponibile" />
       )}
-      {!error && appelli && appelli.length > 0 && (
-        <Table
-          rowKey="appId"
-          dataSource={appelli}
-          columns={columns}
-          pagination={false}
-          size="small"
-          scroll={{ x: "max-content" }}
-        />
-      )}
+      {!error &&
+        appelli &&
+        appelli.length > 0 &&
+        (isMobile ? (
+          <List
+            dataSource={appelli}
+            rowKey="appId"
+            renderItem={(a) => (
+              <List.Item>
+                <div style={{ width: "100%" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      gap: 8,
+                    }}
+                  >
+                    <Typography.Text strong>
+                      {fmt(a.dataInizioApp)}
+                    </Typography.Text>
+                    <Typography.Text type="secondary" style={{ flexShrink: 0 }}>
+                      {a.numIscritti} iscritti
+                    </Typography.Text>
+                  </div>
+                  <Typography.Text type="secondary">{a.desApp}</Typography.Text>
+                  <div style={{ marginTop: 4 }}>
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      Iscrizioni: {fmt(a.dataInizioIscr)} - {fmt(a.dataFineIscr)}
+                    </Typography.Text>
+                  </div>
+                  <div style={{ marginTop: 8 }}>{renderAzione(a)}</div>
+                </div>
+              </List.Item>
+            )}
+          />
+        ) : (
+          <Table
+            rowKey="appId"
+            dataSource={appelli}
+            columns={columns}
+            pagination={false}
+            size="small"
+            scroll={{ x: "max-content" }}
+          />
+        ))}
     </div>
   );
 }

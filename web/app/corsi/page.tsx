@@ -29,7 +29,7 @@ export default function CorsiPage() {
         type="error"
         showIcon
         message="Impossibile leggere Elly"
-        description={`${error}. Verifica ELLY_BASE e le credenziali ELLY_* nel file .env.`}
+        description={`${error} Elly a volte è instabile: prova a ricaricare la pagina.`}
       />
     );
   }

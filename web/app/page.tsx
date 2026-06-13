@@ -6,8 +6,11 @@ import {
   Alert,
   Card,
   Col,
+  Grid,
+  List,
   Row,
   Select,
+  Space,
   Spin,
   Statistic,
   Table,
@@ -26,8 +29,12 @@ function carrieraLabel(t: TrattoCarriera): string {
   return `${t.cdsDes} - ${t.staStuDes}`;
 }
 
+const { useBreakpoint } = Grid;
+
 export default function CarrieraPage() {
   const router = useRouter();
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
   const [carriere, setCarriere] = useState<TrattoCarriera[]>([]);
   const [matId, setMatId] = useState<number | null>(null);
   const [libretto, setLibretto] = useState<Libretto | null>(null);
@@ -83,13 +90,58 @@ export default function CarrieraPage() {
         type="error"
         showIcon
         message="Impossibile leggere Esse3"
-        description={`${error}. Controlla le credenziali ESSE3_* nel file .env.`}
+        description={`${error}. Prova a ricaricare la pagina o a rifare il login.`}
       />
     );
   }
 
   const sel = carriere.find((t) => t.matId === matId);
   const s = libretto?.stats;
+
+  const dsRows: RigaDaSostenere[] =
+    daSostenere ??
+    ((libretto?.daFare ?? []).map((r) => ({
+      ...r,
+      prenotazione: {
+        stato: "nessuno",
+        prenotabili: 0,
+        dataPrenotazione: null,
+        dataAppello: null,
+      },
+    })) as RigaDaSostenere[]);
+
+  const goToEsame = (r: RigaDaSostenere) => {
+    const k = r.chiaveADContestualizzata;
+    const q = new URLSearchParams({
+      matId: String(matId),
+      cdsId: String(k.cdsId),
+      adsceId: String(r.adsceId),
+      stuId: String(r.stuId),
+      n: r.adDes,
+    });
+    router.push(`/esami/${k.adId}?${q.toString()}`);
+  };
+
+  const tipoTag = (t: string) =>
+    /opzion/i.test(t) ? (
+      <Tag color="purple">A scelta</Tag>
+    ) : (
+      <Tag>Obbligatorio</Tag>
+    );
+
+  const prenTag = (r: RigaDaSostenere) =>
+    r.numPrenotazioni > 0 ? (
+      <Tag color="blue">Prenotato</Tag>
+    ) : r.prenotazione?.stato === "esterno" ? (
+      <Tag color="orange">Su Esse3</Tag>
+    ) : r.prenotazione?.prenotabili > 0 ? (
+      <Tag color="gold">
+        {r.prenotazione.prenotabili}{" "}
+        {r.prenotazione.prenotabili === 1 ? "prenotabile" : "prenotabili"}
+      </Tag>
+    ) : (
+      <Tag>Nessun appello</Tag>
+    );
 
   const columns = [
     { title: "Insegnamento", dataIndex: "adDes", key: "adDes" },
@@ -142,7 +194,10 @@ export default function CarrieraPage() {
         ) : r.prenotazione?.stato === "esterno" ? (
           <Tag color="orange">Su Esse3</Tag>
         ) : r.prenotazione?.prenotabili > 0 ? (
-          <Tag color="gold">{r.prenotazione.prenotabili} prenotabile/i</Tag>
+          <Tag color="gold">
+          {r.prenotazione.prenotabili}{" "}
+          {r.prenotazione.prenotabili === 1 ? "prenotabile" : "prenotabili"}
+        </Tag>
         ) : (
           <Tag>Nessun appello</Tag>
         ),
@@ -196,9 +251,9 @@ export default function CarrieraPage() {
         )}
       </div>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} align="stretch" style={{ marginBottom: 24 }}>
         <Col xs={12} md={6}>
-          <Card>
+          <Card style={{ height: "100%" }}>
             <Statistic
               title="Media ponderata"
               value={s?.mediaPonderata ?? 0}
@@ -207,69 +262,117 @@ export default function CarrieraPage() {
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card>
+          <Card style={{ height: "100%" }}>
             <Statistic title="CFU acquisiti" value={s?.cfuFatti ?? 0} />
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card>
+          <Card style={{ height: "100%" }}>
             <Statistic title="Esami superati" value={s?.esamiSuperati ?? 0} />
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card>
+          <Card style={{ height: "100%" }}>
             <Statistic title="Esami da fare" value={s?.esamiDaFare ?? 0} />
           </Card>
         </Col>
       </Row>
 
       <Card title="Esami superati" style={{ marginBottom: 24 }}>
-        <Table
-          rowKey={(r) => r.chiaveADContestualizzata.adId}
-          dataSource={libretto?.superate ?? []}
-          columns={colSuperate}
-          pagination={false}
-          size="small"
-          scroll={{ x: "max-content" }}
-          loading={librettoLoading}
-        />
+        {isMobile ? (
+          <List
+            loading={librettoLoading}
+            dataSource={libretto?.superate ?? []}
+            rowKey={(r) => r.chiaveADContestualizzata.adId}
+            renderItem={(r) => (
+              <List.Item>
+                <div style={{ width: "100%" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      gap: 8,
+                    }}
+                  >
+                    <Typography.Text strong>{r.adDes}</Typography.Text>
+                    <Tag
+                      color={r.esito.voto != null ? "green" : undefined}
+                      style={{ marginRight: 0, flexShrink: 0 }}
+                    >
+                      {r.esito.voto ?? "idoneo"}
+                    </Tag>
+                  </div>
+                  <Space size={[8, 4]} wrap style={{ marginTop: 6 }}>
+                    <Typography.Text type="secondary">
+                      {r.peso} CFU
+                    </Typography.Text>
+                    {tipoTag(r.tipoInsDes)}
+                    <Typography.Text type="secondary">
+                      {r.esito.dataEsa?.slice(0, 10) ?? "-"}
+                    </Typography.Text>
+                  </Space>
+                </div>
+              </List.Item>
+            )}
+          />
+        ) : (
+          <Table
+            rowKey={(r) => r.chiaveADContestualizzata.adId}
+            dataSource={libretto?.superate ?? []}
+            columns={colSuperate}
+            pagination={false}
+            size="small"
+            scroll={{ x: "max-content" }}
+            loading={librettoLoading}
+          />
+        )}
       </Card>
 
       <Card title="Da sostenere">
-        <Table
-          rowKey={(r) => r.chiaveADContestualizzata.adId}
-          dataSource={
-            daSostenere ??
-            ((libretto?.daFare ?? []).map((r) => ({
-              ...r,
-              prenotazione: {
-                stato: "nessuno",
-                prenotabili: 0,
-                dataPrenotazione: null,
-                dataAppello: null,
-              },
-            })) as RigaDaSostenere[])
-          }
-          columns={colDaFare}
-          pagination={false}
-          size="small"
-          scroll={{ x: "max-content" }}
-          loading={librettoLoading || dsLoading}
-          onRow={(r) => ({
-            style: { cursor: "pointer" },
-            onClick: () => {
-              const k = r.chiaveADContestualizzata;
-              const q = new URLSearchParams({
-                matId: String(matId),
-                cdsId: String(k.cdsId),
-                adsceId: String(r.adsceId),
-                stuId: String(r.stuId),
-                n: r.adDes,
-              });
-              router.push(`/esami/${k.adId}?${q.toString()}`);
-            },
-          })}
-        />
+        {isMobile ? (
+          <List
+            loading={librettoLoading || dsLoading}
+            dataSource={dsRows}
+            rowKey={(r) => r.chiaveADContestualizzata.adId}
+            renderItem={(r) => (
+              <List.Item
+                onClick={() => goToEsame(r)}
+                style={{ cursor: "pointer" }}
+              >
+                <div style={{ width: "100%" }}>
+                  <Typography.Text strong>{r.adDes}</Typography.Text>
+                  <Space size={[8, 4]} wrap style={{ marginTop: 6 }}>
+                    <Typography.Text type="secondary">
+                      {r.peso} CFU
+                    </Typography.Text>
+                    {tipoTag(r.tipoInsDes)}
+                    {prenTag(r)}
+                    {r.prenotazione?.dataAppello && (
+                      <Typography.Text type="secondary">
+                        {r.prenotazione.dataAppello.slice(0, 10)}
+                      </Typography.Text>
+                    )}
+                  </Space>
+                </div>
+              </List.Item>
+            )}
+          />
+        ) : (
+          <Table
+            rowKey={(r) => r.chiaveADContestualizzata.adId}
+            dataSource={dsRows}
+            columns={colDaFare}
+            pagination={false}
+            size="small"
+            scroll={{ x: "max-content" }}
+            loading={librettoLoading || dsLoading}
+            onRow={(r) => ({
+              style: { cursor: "pointer" },
+              onClick: () => goToEsame(r),
+            })}
+          />
+        )}
       </Card>
     </div>
   );

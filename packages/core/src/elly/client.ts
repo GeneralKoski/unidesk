@@ -55,7 +55,22 @@ export class EllyClient {
 
   constructor(private readonly cfg: EllyConfig) {}
 
-  private async login(): Promise<Session> {
+  // Il flusso SSO Shibboleth è instabile: a volte l'IdP restituisce una pagina
+  // di sessione scaduta o un interstiziale inatteso e il login fallisce anche
+  // con credenziali corrette. Si ritenta qualche volta prima di arrendersi.
+  private async login(attempts = 3): Promise<Session> {
+    let lastErr: unknown;
+    for (let i = 0; i < attempts; i++) {
+      try {
+        return await this.attemptLogin();
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+  }
+
+  private async attemptLogin(): Promise<Session> {
     const jar: Record<string, string> = {};
     const cookie = () =>
       Object.entries(jar)
@@ -113,7 +128,7 @@ export class EllyClient {
     // 4. auto-submit della SAMLResponse verso il SP → sessione Moodle.
     f = parseForm(r.html);
     if (!f.inputs.SAMLResponse) {
-      throw new Error("Elly login fallito: credenziali errate o flusso SSO cambiato.");
+      throw new Error("Elly non risponde correttamente al login (SSO). Riprova tra poco.");
     }
     r = await post(f.action, f.inputs, r.url);
 

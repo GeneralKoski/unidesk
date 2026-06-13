@@ -55,7 +55,10 @@ export default function EsamiPage() {
     ) : r.prenotazione?.stato === "esterno" ? (
       <Tag color="orange">Su Esse3</Tag>
     ) : r.prenotazione?.prenotabili > 0 ? (
-      <Tag color="gold">{r.prenotazione.prenotabili} prenotabile/i</Tag>
+      <Tag color="gold">
+        {r.prenotazione.prenotabili}{" "}
+        {r.prenotazione.prenotabili === 1 ? "prenotabile" : "prenotabili"}
+      </Tag>
     ) : (
       <Tag>Nessun appello</Tag>
     );

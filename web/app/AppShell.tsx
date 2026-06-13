@@ -51,6 +51,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const isMobile = !screens.lg;
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [auth, setAuth] = useState<Auth>("loading");
+  const [hideHeader, setHideHeader] = useState(false);
+
+  // Header a comparsa: scende → si nasconde, sale → ricompare.
+  useEffect(() => {
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (y > last && y > 64) setHideHeader(true);
+      else if (y < last) setHideHeader(false);
+      last = y;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -159,6 +173,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             display: "flex",
             alignItems: "center",
             gap: 12,
+            position: "sticky",
+            top: 0,
+            zIndex: 100,
+            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.06)",
+            transform: hideHeader ? "translateY(-100%)" : "translateY(0)",
+            transition: "transform 0.25s ease",
           }}
         >
           {isMobile && (
