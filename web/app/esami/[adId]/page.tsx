@@ -15,6 +15,7 @@ import {
   Spin,
   Table,
   Tag,
+  Tooltip,
   Typography,
 } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
@@ -113,17 +114,23 @@ export default function EsameDettaglioPage() {
       return (
         <Space>
           <Tag color="green">Prenotato</Tag>
-          <Popconfirm
-            title="Disiscriverti da questo appello?"
-            okText="Disiscriviti"
-            okButtonProps={{ danger: true }}
-            cancelText="Annulla"
-            onConfirm={() => act(a, "disiscrivi")}
-          >
-            <Button size="small" danger loading={busy === a.appId}>
-              Disiscriviti
-            </Button>
-          </Popconfirm>
+          {a.disiscrivibile ? (
+            <Popconfirm
+              title="Disiscriverti da questo appello?"
+              okText="Disiscriviti"
+              okButtonProps={{ danger: true }}
+              cancelText="Annulla"
+              onConfirm={() => act(a, "disiscrivi")}
+            >
+              <Button size="small" danger loading={busy === a.appId}>
+                Disiscriviti
+              </Button>
+            </Popconfirm>
+          ) : (
+            <Tooltip title="Iscrizioni chiuse: non è più possibile disiscriversi. Se necessario, gestisci la prenotazione su Esse3.">
+              <Tag color="default">Disiscrizione chiusa</Tag>
+            </Tooltip>
+          )}
         </Space>
       );
     }

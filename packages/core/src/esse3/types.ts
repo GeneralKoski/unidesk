@@ -82,5 +82,6 @@ export interface RigaDaSostenere extends RigaLibretto {
 export interface AppelloConStato extends Appello {
   prenotato: boolean; // l'utente è iscritto a questo appello
   prenotabile: boolean; // finestra di iscrizione aperta ora
+  disiscrivibile: boolean; // disiscrizione consentita ora (finestra ancora aperta)
   iscrizioni: "futura" | "aperta" | "chiusa"; // stato della finestra
 }

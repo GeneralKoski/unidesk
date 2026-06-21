@@ -171,7 +171,15 @@ export class Esse3Client {
           : apertura !== null && oggi < apertura
             ? "futura"
             : "chiusa";
-        return { ...a, prenotato: iscritto.has(a.appId), prenotabile, iscrizioni };
+        // La disiscrizione è consentita solo finché la finestra è aperta
+        // (stesso segnale "P" di Esse3): chiusa la finestra non si può più.
+        return {
+          ...a,
+          prenotato: iscritto.has(a.appId),
+          prenotabile,
+          disiscrivibile: prenotabile,
+          iscrizioni,
+        };
       });
   }
 
