@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Alert, Card, Col, Empty, Row, Spin, Typography } from "antd";
+import { Alert, Card, Empty, Spin, Typography } from "antd";
 import { BookOutlined } from "@ant-design/icons";
 import type { Course } from "@unidesk/core";
 import { getJSON } from "@/lib/api";
+import SortableGrid from "@/lib/SortableGrid";
 
 export default function CorsiPage() {
   const router = useRouter();
@@ -39,27 +40,28 @@ export default function CorsiPage() {
   return (
     <div>
       <Typography.Title level={3}>Corsi su Elly</Typography.Title>
-      <Row gutter={[16, 16]}>
-        {courses.map((c) => (
-          <Col xs={24} sm={12} lg={8} key={c.id}>
-            <Card
-              hoverable
-              onClick={() =>
-                router.push(
-                  `/corsi/${c.id}?n=${encodeURIComponent(c.fullname ?? c.shortname)}`,
-                )
-              }
-              style={{ height: "100%" }}
-            >
-              <Card.Meta
-                avatar={<BookOutlined style={{ fontSize: 22, color: "#1677ff" }} />}
-                title={c.fullname ?? c.shortname}
-                description={c.shortname}
-              />
-            </Card>
-          </Col>
-        ))}
-      </Row>
+      <SortableGrid
+        items={courses}
+        getId={(c) => String(c.id)}
+        storageKey="unidesk:order:corsi"
+        renderItem={(c) => (
+          <Card
+            hoverable
+            onClick={() =>
+              router.push(
+                `/corsi/${c.id}?n=${encodeURIComponent(c.fullname ?? c.shortname)}`,
+              )
+            }
+            style={{ height: "100%" }}
+          >
+            <Card.Meta
+              avatar={<BookOutlined style={{ fontSize: 22, color: "#1677ff" }} />}
+              title={c.fullname ?? c.shortname}
+              description={c.shortname}
+            />
+          </Card>
+        )}
+      />
     </div>
   );
 }

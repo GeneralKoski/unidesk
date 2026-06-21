@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Alert, Card, Col, Empty, Row, Space, Spin, Tag, Typography } from "antd";
+import { Alert, Card, Empty, Space, Spin, Tag, Typography } from "antd";
 import { CalendarOutlined } from "@ant-design/icons";
 import type { RigaDaSostenere, TrattoCarriera } from "@unidesk/core";
 import { getJSON } from "@/lib/api";
+import SortableGrid from "@/lib/SortableGrid";
 
 export default function EsamiPage() {
   const router = useRouter();
@@ -66,8 +67,11 @@ export default function EsamiPage() {
   return (
     <div>
       <Typography.Title level={3}>Esami da sostenere</Typography.Title>
-      <Row gutter={[16, 16]}>
-        {righe.map((r) => {
+      <SortableGrid
+        items={righe}
+        getId={(r) => String(r.chiaveADContestualizzata.adId)}
+        storageKey="unidesk:order:esami"
+        renderItem={(r) => {
           const k = r.chiaveADContestualizzata;
           const q = new URLSearchParams({
             matId: String(matId),
@@ -77,34 +81,32 @@ export default function EsamiPage() {
             n: r.adDes,
           });
           return (
-            <Col xs={24} sm={12} lg={8} key={k.adId}>
-              <Card
-                hoverable
-                onClick={() => router.push(`/esami/${k.adId}?${q.toString()}`)}
-                style={{ height: "100%" }}
-                title={
-                  <Space>
-                    <CalendarOutlined style={{ color: "#1677ff" }} />
-                    <span style={{ whiteSpace: "normal" }}>{r.adDes}</span>
-                  </Space>
-                }
-              >
-                <Space direction="vertical" size={4}>
-                  <Space size={8}>
-                    <Tag>{r.peso} CFU</Tag>
-                    {statoTag(r)}
-                  </Space>
-                  {r.prenotazione?.dataAppello && (
-                    <Typography.Text type="secondary">
-                      Appello {r.prenotazione.dataAppello.slice(0, 10)}
-                    </Typography.Text>
-                  )}
+            <Card
+              hoverable
+              onClick={() => router.push(`/esami/${k.adId}?${q.toString()}`)}
+              style={{ height: "100%" }}
+              title={
+                <Space>
+                  <CalendarOutlined style={{ color: "#1677ff" }} />
+                  <span style={{ whiteSpace: "normal" }}>{r.adDes}</span>
                 </Space>
-              </Card>
-            </Col>
+              }
+            >
+              <Space direction="vertical" size={4}>
+                <Space size={8}>
+                  <Tag>{r.peso} CFU</Tag>
+                  {statoTag(r)}
+                </Space>
+                {r.prenotazione?.dataAppello && (
+                  <Typography.Text type="secondary">
+                    Appello {r.prenotazione.dataAppello.slice(0, 10)}
+                  </Typography.Text>
+                )}
+              </Space>
+            </Card>
           );
-        })}
-      </Row>
+        }}
+      />
     </div>
   );
 }
