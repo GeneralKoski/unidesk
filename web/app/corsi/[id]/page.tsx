@@ -15,7 +15,9 @@ import {
 import type { Module, Section } from "@unidesk/core";
 import { getJSON } from "@/lib/api";
 
-const fileHref = (url: string) => `/api/elly/file?url=${encodeURIComponent(url)}`;
+const fileHref = (url: string, modname?: string) =>
+  `/api/elly/file?url=${encodeURIComponent(url)}` +
+  (modname ? `&modname=${encodeURIComponent(modname)}` : "");
 
 function FolderItem({ m }: { m: Module }) {
   const [open, setOpen] = useState(false);
@@ -70,7 +72,7 @@ function ModuleItem({ m }: { m: Module }) {
   const icon = m.modname === "resource" ? <FileOutlined /> : <LinkOutlined />;
   if (m.url) {
     return (
-      <a href={fileHref(m.url)} target="_blank" rel="noreferrer">
+      <a href={fileHref(m.url, m.modname)} target="_blank" rel="noreferrer">
         {icon} {m.name}
       </a>
     );

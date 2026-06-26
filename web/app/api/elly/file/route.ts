@@ -10,11 +10,12 @@ export async function GET(req: Request) {
   const client = await ellyOrNull();
   if (!client) return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
   try {
-    const url = new URL(req.url).searchParams.get("url");
+    const params = new URL(req.url).searchParams;
+    const url = params.get("url");
     if (!url) {
       return NextResponse.json({ error: "url mancante" }, { status: 400 });
     }
-    const r = await client.resolveFile(url);
+    const r = await client.resolveFile(url, params.get("modname") ?? undefined);
     if (r.kind === "redirect") {
       return NextResponse.redirect(r.location);
     }

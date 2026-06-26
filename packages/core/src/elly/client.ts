@@ -184,6 +184,7 @@ export class EllyClient {
   // di download, dato che il browser non ha la sessione (sta solo lato server).
   async resolveFile(
     rawUrl: string,
+    modname?: string,
   ): Promise<
     | { kind: "file"; data: ArrayBuffer; contentType: string; filename: string }
     | { kind: "redirect"; location: string }
@@ -213,13 +214,22 @@ export class EllyClient {
           decodeURIComponent(cur.split("/").pop()?.split("?")[0] ?? "file");
         return { kind: "file", data, contentType: contentType || "application/octet-stream", filename };
       }
-      // Pagina HTML (resource "embed", ecc.): cerca un link al file pluginfile.
+      // Pagina HTML. Solo le "resource" sono file embeddati: cerco il link al
+      // pluginfile. Per attività interattive (forum, assign, quiz, …) la pagina
+      // contiene pluginfile spuri (favicon del tema, allegati dei post): non
+      // vanno scaricati, l'utente va rimandato alla pagina su Elly.
+      if (modname && modname !== "resource") {
+        return { kind: "redirect", location: cur };
+      }
       const html = await res.text();
-      const m = html.match(/https?:\/\/[^"']*\/pluginfile\.php\/[^"']+/i);
+      const m = html
+        .match(/https?:\/\/[^"']*\/pluginfile\.php\/[^"']+/gi)
+        // Escludo gli asset del tema (favicon, logo, …): non sono il file.
+        ?.find((u) => !/\/theme[_/]|favicon/i.test(u));
       if (m) {
         // Valida l'host prima di seguirlo col cookie di sessione: una pagina
         // ostile potrebbe puntare altrove (SSRF / leak del cookie).
-        const candidate = new URL(m[0].replace(/&amp;/g, "&"));
+        const candidate = new URL(m.replace(/&amp;/g, "&"));
         if (candidate.host !== baseHost) {
           return { kind: "redirect", location: candidate.toString() };
         }
