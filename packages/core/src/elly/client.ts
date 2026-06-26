@@ -38,7 +38,9 @@ function parseForm(html: string, idx = 0): { action: string; inputs: Record<stri
 const clients = new Map<string, EllyClient>();
 export function ellyClient(cfg: EllyConfig): EllyClient {
   let c = clients.get(cfg.user);
-  if (!c) {
+  // Se la password è cambiata, il client cached ha credenziali (e sessione)
+  // ormai stale: lo ricreo, altrimenti il re-login fallirebbe alla scadenza.
+  if (!c || c.password !== cfg.pass) {
     c = new EllyClient(cfg);
     clients.set(cfg.user, c);
   }
@@ -52,8 +54,13 @@ interface Session {
 
 export class EllyClient {
   private session?: Session;
+  private loggingIn?: Promise<Session>;
 
   constructor(private readonly cfg: EllyConfig) {}
+
+  get password(): string {
+    return this.cfg.pass;
+  }
 
   // Il flusso SSO Shibboleth è instabile: a volte l'IdP restituisce una pagina
   // di sessione scaduta o un interstiziale inatteso e il login fallisce anche
@@ -138,7 +145,13 @@ export class EllyClient {
   }
 
   private async getSession(): Promise<Session> {
-    return (this.session ??= await this.login());
+    if (this.session) return this.session;
+    // Deduplica i login concorrenti: condivido la stessa promise finché è in
+    // volo, così richieste parallele non fanno più SSO insieme.
+    this.loggingIn ??= this.login().finally(() => {
+      this.loggingIn = undefined;
+    });
+    return (this.session = await this.loggingIn);
   }
 
   // Chiamata all'API AJAX interna di Moodle. Rinnova la sessione e ritenta una
