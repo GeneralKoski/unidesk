@@ -20,12 +20,13 @@ export interface RigaLibretto {
   peso: number; // CFU
   tipoInsDes: string; // Obbligatorio / Opzionale
   stato: { value: string }; // "S" superata, "F" frequentata
-  esito: { voto: number | null; dataEsa: string; lode?: boolean };
+  esito: { voto: number | null; dataEsa: string; lode?: boolean; dataVerb?: string; dataPubb?: string };
   numAppelliPrenotabili: number;
   numPrenotazioni: number;
   adsceId: number; // id AD-scelta dello studente, serve per la prenotazione
   stuId: number; // id studente, serve per la disiscrizione
   chiaveADContestualizzata: { adId: number; afId: number; cdsId: number };
+  dataIns?: string; // data inserimento a libretto
 }
 
 export interface LibrettoStats {
