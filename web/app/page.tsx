@@ -377,6 +377,12 @@ export default function CarrieraPage() {
       },
     })) as RigaDaSostenere[]);
 
+  const availableDaSostenere = useMemo(() => {
+    return dsRows.filter(
+      (ds) => !mockExams.some((me) => me.adDes === ds.adDes)
+    );
+  }, [dsRows, mockExams]);
+
   const goToEsame = (r: RigaDaSostenere) => {
     const k = r.chiaveADContestualizzata;
     const q = new URLSearchParams({
@@ -931,16 +937,28 @@ export default function CarrieraPage() {
                 </Typography.Text>
                 <Row gutter={[8, 8]} align="middle">
                   <Col xs={24} sm={10}>
-                    <Input 
-                      placeholder="Nome insegnamento (opzionale)" 
-                      value={newExamName} 
-                      onChange={e => setNewExamName(e.target.value)} 
+                    <Select
+                      style={{ width: "100%" }}
+                      placeholder="Seleziona esame da sostenere"
+                      value={newExamName || undefined}
+                      onChange={val => {
+                        const selectedExam = availableDaSostenere.find(x => x.adDes === val);
+                        if (selectedExam) {
+                          setNewExamName(selectedExam.adDes);
+                          setNewExamCFU(selectedExam.peso);
+                        }
+                      }}
+                      options={availableDaSostenere.map(ds => ({
+                        value: ds.adDes,
+                        label: `${ds.adDes} (${ds.peso} CFU)`
+                      }))}
                     />
                   </Col>
                   <Col xs={12} sm={4}>
                     <Select
                       style={{ width: "100%" }}
                       placeholder="CFU"
+                      disabled={true}
                       value={newExamCFU || undefined}
                       onChange={val => setNewExamCFU(val)}
                       options={[3, 6, 9, 12, 15].map(v => ({ value: v, label: `${v} CFU` }))}
