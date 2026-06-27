@@ -8,7 +8,9 @@ import {
   Card,
   Col,
   Divider,
+  Dropdown,
   Grid,
+  Input,
   List,
   Radio,
   Row,
@@ -23,12 +25,19 @@ import {
   Tooltip,
   Typography,
 } from "antd";
+import type { MenuProps } from "antd";
 import {
   AppstoreOutlined,
   ArrowDownOutlined,
   ArrowUpOutlined,
+  CalculatorOutlined,
+  DeleteOutlined,
+  DownloadOutlined,
+  FileExcelOutlined,
   HistoryOutlined,
   LineOutlined,
+  PlusOutlined,
+  PrinterOutlined,
 } from "@ant-design/icons";
 import type {
   Libretto,
@@ -60,9 +69,17 @@ export default function CarrieraPage() {
   const [dsLoading, setDsLoading] = useState(false);
 
   // Stati per la visualizzazione dello storico
-  const [viewMode, setViewMode] = useState<"dashboard" | "storia">("dashboard");
+  const [viewMode, setViewMode] = useState<"dashboard" | "storia" | "simulatore">("dashboard");
   const [sortBy, setSortBy] = useState<"dataRicezione" | "dataEsa">("dataRicezione");
   const [selectedHistoryIndex, setSelectedHistoryIndex] = useState<number | null>(null);
+
+  // Stati per il simulatore della media e proiezioni
+  const [mockExams, setMockExams] = useState<Array<{ id: string; adDes: string; peso: number; voto: number | null; lode: boolean }>>([]);
+  const [targetGraduationScore, setTargetGraduationScore] = useState<number>(110);
+  const [newExamName, setNewExamName] = useState("");
+  const [newExamCFU, setNewExamCFU] = useState<number | "">("");
+  const [newExamGrade, setNewExamGrade] = useState<number | null | "">("");
+  const [newExamLode, setNewExamLode] = useState(false);
 
   // Carica le carriere una volta e seleziona di default quella attiva
   // (staStuCod "A"); se nessuna è attiva, ripiega sulla prima.
@@ -98,9 +115,10 @@ export default function CarrieraPage() {
       .catch(() => setDaSostenere(null))
       .finally(() => setDsLoading(false));
 
-    // Reset dello storico
+    // Reset dello storico e simulatore
     setSelectedHistoryIndex(null);
     setViewMode("dashboard");
+    setMockExams([]);
   }, [matId]);
 
   // Helper per estrarre la data dell'esame in base al criterio
@@ -198,14 +216,171 @@ export default function CarrieraPage() {
   const sel = carriere.find((t) => t.matId === matId);
   const s = libretto?.stats;
 
-  // Statistiche correnti o storiche
+  // Calcolo delle statistiche simulate (esami reali superati + esami mock)
+  const simulatedStats = useMemo(() => {
+    const superateReali = libretto?.superate ?? [];
+    const tuttiEsami = [
+      ...superateReali.map(r => ({ peso: r.peso, voto: r.esito.voto, lode: r.esito.lode })),
+      ...mockExams.map(m => ({ peso: m.peso, voto: m.voto, lode: m.lode }))
+    ];
+    
+    const cfuFatti = tuttiEsami.reduce((sum, r) => sum + r.peso, 0);
+    const conVoto = tuttiEsami.filter((r) => r.voto != null);
+    const sommaPesata = conVoto.reduce(
+      (sum, r) => sum + (r.voto as number) * r.peso,
+      0,
+    );
+    const pesoTot = conVoto.reduce((sum, r) => sum + r.peso, 0);
+    const mediaPonderata = pesoTot ? sommaPesata / pesoTot : 0;
+    const votoPartenza = (mediaPonderata / 30) * 110;
+    
+    return {
+      cfuFatti,
+      mediaPonderata,
+      votoPartenza,
+      esamiSuperati: tuttiEsami.length,
+    };
+  }, [libretto?.superate, mockExams]);
+
+  // Proiezioni di laurea
+  const targetProjections = useMemo(() => {
+    if (!libretto?.stats) return null;
+    
+    const realCfu = libretto.stats.cfuFatti;
+    const realMedia = libretto.stats.mediaPonderata;
+    const remainingCfu = libretto.stats.cfuRimasti;
+    
+    // Includiamo anche gli esami simulati nel conteggio dei CFU fatti e rimanenti!
+    const mockCfu = mockExams.reduce((sum, r) => sum + r.peso, 0);
+    
+    // Ricalcoliamo i rimanenti detraendo quelli simulati
+    const effectiveRemainingCfu = Math.max(0, remainingCfu - mockCfu);
+    const effectiveRealCfu = realCfu + mockCfu;
+    const effectiveRealMedia = simulatedStats.mediaPonderata;
+    
+    if (effectiveRemainingCfu <= 0) {
+      return { achievable: true, message: "Obiettivo raggiunto! Hai simulato il completamento di tutti i CFU rimanenti." };
+    }
+    
+    const targetAvg = (targetGraduationScore * 30) / 110;
+    const totalCfu = effectiveRealCfu + effectiveRemainingCfu;
+    
+    // Formula per la media necessaria
+    const neededAvg = ((targetAvg * totalCfu) - (effectiveRealMedia * effectiveRealCfu)) / effectiveRemainingCfu;
+    
+    if (neededAvg <= 18) {
+      return { 
+        achievable: true, 
+        neededAvg, 
+        message: `Obiettivo garantito! Ti basta mantenere una media ponderata di 18.00 (o idoneità) nei restanti ${effectiveRemainingCfu} CFU.`
+      };
+    }
+    if (neededAvg > 30) {
+      return { 
+        achievable: false, 
+        neededAvg, 
+        message: `Obiettivo non raggiungibile matematicamente. Richiederebbe una media ponderata di ${neededAvg.toFixed(2)} nei restanti ${effectiveRemainingCfu} CFU.`
+      };
+    }
+    return {
+      achievable: true,
+      neededAvg,
+      message: `Raggiungibile mantenendo una media ponderata di ${neededAvg.toFixed(2)} nei restanti ${effectiveRemainingCfu} CFU.`
+    };
+  }, [libretto?.stats, targetGraduationScore, mockExams, simulatedStats]);
+
+  // Distribuzione dei voti reali
+  const gradeDistribution = useMemo(() => {
+    if (!libretto?.superate) return { data: [], maxCount: 0 };
+    
+    const distribution: Record<string, number> = {};
+    for (let g = 18; g <= 30; g++) {
+      distribution[String(g)] = 0;
+    }
+    distribution["30L"] = 0;
+    
+    let maxCount = 0;
+    libretto.superate.forEach(r => {
+      if (r.esito.voto != null) {
+        let key = String(r.esito.voto);
+        if (r.esito.voto === 30 && r.esito.lode) {
+          key = "30L";
+        }
+        distribution[key] = (distribution[key] || 0) + 1;
+        if (distribution[key] > maxCount) {
+          maxCount = distribution[key];
+        }
+      }
+    });
+    
+    return {
+      data: Object.entries(distribution).map(([grade, count]) => ({ grade, count })),
+      maxCount
+    };
+  }, [libretto?.superate]);
+
+  const handleAddMockExam = () => {
+    if (newExamCFU === "") return;
+    const newExam = {
+      id: Math.random().toString(36).substring(2, 9),
+      adDes: newExamName.trim() || `Esame Ipotetico ${mockExams.length + 1}`,
+      peso: Number(newExamCFU),
+      voto: newExamGrade === "" ? null : newExamGrade,
+      lode: newExamLode
+    };
+    setMockExams([...mockExams, newExam]);
+    setNewExamName("");
+    setNewExamCFU("");
+    setNewExamGrade("");
+    setNewExamLode(false);
+  };
+
+  const handleRemoveMockExam = (id: string) => {
+    setMockExams(mockExams.filter(exam => exam.id !== id));
+  };
+
+  const handleExportCSV = () => {
+    if (!libretto?.superate) return;
+    const headers = ["Insegnamento", "CFU", "Tipo", "Voto", "Lode", "Data Esame"];
+    const rows = libretto.superate.map(r => [
+      `"${r.adDes.replace(/"/g, '""')}"`,
+      r.peso,
+      r.tipoInsDes,
+      r.esito.voto !== null ? r.esito.voto : "Idoneo",
+      r.esito.lode ? "Sì" : "No",
+      r.esito.dataEsa?.slice(0, 10) ?? ""
+    ]);
+    const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `libretto_${matId || 'carriera'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handlePrintPDF = () => {
+    window.print();
+  };
+
+  // Statistiche correnti, storiche o simulate
   const isHistoryActive = viewMode === "storia" && selectedHistoryIndex !== null;
+  const isSimulatoreActive = viewMode === "simulatore";
   const currentStats = isHistoryActive && historyStats[selectedHistoryIndex ?? 0]
     ? {
         mediaPonderata: historyStats[selectedHistoryIndex ?? 0].mediaPonderata,
         votoPartenza: historyStats[selectedHistoryIndex ?? 0].votoPartenza,
         cfuFatti: historyStats[selectedHistoryIndex ?? 0].cfuAcquisiti,
         esamiSuperati: historyStats[selectedHistoryIndex ?? 0].esamiSuperati,
+      }
+    : isSimulatoreActive
+    ? {
+        mediaPonderata: simulatedStats.mediaPonderata,
+        votoPartenza: simulatedStats.votoPartenza,
+        cfuFatti: simulatedStats.cfuFatti,
+        esamiSuperati: simulatedStats.esamiSuperati,
       }
     : {
         mediaPonderata: s?.mediaPonderata ?? 0,
@@ -345,7 +520,7 @@ export default function CarrieraPage() {
     }
 
     const paddingX = 45;
-    const paddingY = 30;
+    const paddingY = 40; // Spazio per le date sull'asse X
     const chartHeight = 220;
     const chartWidth = 500;
 
@@ -354,21 +529,45 @@ export default function CarrieraPage() {
 
     const points = historyStats.map((item, idx) => {
       const x = paddingX + (idx / (historyStats.length - 1)) * (chartWidth - paddingX - 20);
-      const y = chartHeight - paddingY - ((item.mediaPonderata - minVal) / (maxVal - minVal)) * (chartHeight - paddingY * 2);
+      const y = chartHeight - paddingY - ((item.mediaPonderata - minVal) / (maxVal - minVal)) * (chartHeight - paddingY - 15);
       return { x, y, val: item.mediaPonderata, name: item.exam.adDes, idx };
     });
 
-    let pathD = "";
+    const selectedIdx = selectedHistoryIndex !== null ? selectedHistoryIndex : points.length - 1;
+
+    // Linea attiva (fino all'esame selezionato)
+    let activePathD = "";
     if (points.length > 0) {
-      pathD = `M ${points[0].x} ${points[0].y} `;
-      for (let i = 1; i < points.length; i++) {
-        pathD += `L ${points[i].x} ${points[i].y} `;
+      activePathD = `M ${points[0].x} ${points[0].y} `;
+      for (let i = 1; i <= selectedIdx; i++) {
+        activePathD += `L ${points[i].x} ${points[i].y} `;
       }
     }
 
-    const areaD = pathD 
-      ? `${pathD} L ${points[points.length - 1].x} ${chartHeight - paddingY} L ${points[0].x} ${chartHeight - paddingY} Z`
+    // Linea inattiva/futura (dopo l'esame selezionato)
+    let inactivePathD = "";
+    if (selectedHistoryIndex !== null && selectedHistoryIndex < points.length - 1) {
+      inactivePathD = `M ${points[selectedHistoryIndex].x} ${points[selectedHistoryIndex].y} `;
+      for (let i = selectedHistoryIndex + 1; i < points.length; i++) {
+        inactivePathD += `L ${points[i].x} ${points[i].y} `;
+      }
+    }
+
+    // Area attiva sfumata sotto la linea
+    const activeAreaD = activePathD 
+      ? `${activePathD} L ${points[selectedIdx].x} ${chartHeight - paddingY} L ${points[0].x} ${chartHeight - paddingY} Z`
       : "";
+
+    // Calcolo degli indici per visualizzare le date sull'asse X (inizio, metà, fine)
+    const labelIndices: number[] = [];
+    if (points.length >= 1) labelIndices.push(0);
+    if (points.length >= 3) {
+      const mid = Math.floor(points.length / 2);
+      if (mid !== 0 && mid !== points.length - 1) {
+        labelIndices.push(mid);
+      }
+    }
+    if (points.length >= 2) labelIndices.push(points.length - 1);
 
     return (
       <div style={{ position: 'relative', width: '100%' }}>
@@ -386,7 +585,7 @@ export default function CarrieraPage() {
 
           {/* Griglia orizzontale e Label Y */}
           {[18, 20, 22, 24, 26, 28, 30].map((val) => {
-            const y = chartHeight - paddingY - ((val - minVal) / (maxVal - minVal)) * (chartHeight - paddingY * 2);
+            const y = chartHeight - paddingY - ((val - minVal) / (maxVal - minVal)) * (chartHeight - paddingY - 15);
             return (
               <g key={val}>
                 <line 
@@ -411,13 +610,13 @@ export default function CarrieraPage() {
             );
           })}
 
-          {/* Area sfumata sotto la linea */}
-          {areaD && <path d={areaD} fill="url(#chartGrad)" />}
+          {/* Area sfumata sotto la linea attiva */}
+          {activeAreaD && <path d={activeAreaD} fill="url(#chartGrad)" />}
 
-          {/* Linea del grafico */}
-          {pathD && (
+          {/* Linea attiva (passata) */}
+          {activePathD && (
             <path 
-              d={pathD} 
+              d={activePathD} 
               fill="none" 
               stroke="url(#lineGrad)" 
               strokeWidth="2.5" 
@@ -426,18 +625,61 @@ export default function CarrieraPage() {
             />
           )}
 
+          {/* Linea inattiva (futura) */}
+          {inactivePathD && (
+            <path 
+              d={inactivePathD} 
+              fill="none" 
+              stroke="#bfbfbf" 
+              strokeWidth="1.5" 
+              strokeDasharray="4 4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )}
+
+          {/* Date sull'asse X */}
+          {labelIndices.map((idx) => {
+            const pt = points[idx];
+            const dateStr = historyStats[idx].date;
+            return (
+              <g key={`lbl-x-${idx}`}>
+                <line 
+                  x1={pt.x} 
+                  y1={chartHeight - paddingY} 
+                  x2={pt.x} 
+                  y2={chartHeight - paddingY + 4} 
+                  stroke="#bfbfbf" 
+                  strokeWidth="1" 
+                />
+                <text
+                  x={pt.x}
+                  y={chartHeight - paddingY + 16}
+                  textAnchor={idx === 0 ? "start" : idx === points.length - 1 ? "end" : "middle"}
+                  fontSize="9"
+                  fill="rgba(0,0,0,0.45)"
+                  fontFamily="sans-serif"
+                >
+                  {dateStr}
+                </text>
+              </g>
+            );
+          })}
+
           {/* Punti interattivi */}
           {points.map((pt) => {
             const isSelected = selectedHistoryIndex === pt.idx;
+            const isPast = selectedHistoryIndex === null || pt.idx <= selectedIdx;
+            
             return (
               <g key={pt.idx} style={{ cursor: "pointer" }} onClick={() => setSelectedHistoryIndex(pt.idx)}>
-                <Tooltip title={`${pt.name}: ${pt.val.toFixed(2)}`}>
+                <Tooltip title={`${pt.name}: ${pt.val.toFixed(2)} (${historyStats[pt.idx].date})`}>
                   <circle 
                     cx={pt.x} 
                     cy={pt.y} 
                     r={isSelected ? 6 : 4} 
-                    fill={isSelected ? "#fff" : "#1890ff"} 
-                    stroke={isSelected ? "#1890ff" : "#fff"}
+                    fill={isSelected ? "#fff" : isPast ? "#1890ff" : "#f0f0f0"} 
+                    stroke={isSelected ? "#1890ff" : isPast ? "#fff" : "#bfbfbf"}
                     strokeWidth={isSelected ? 3 : 1.5}
                     style={{ transition: "all 0.2s" }}
                   />
@@ -457,8 +699,137 @@ export default function CarrieraPage() {
     );
   };
 
+  // Render grafico SVG dell'istogramma di distribuzione voti
+  const renderSVGHistogram = () => {
+    const { data, maxCount } = gradeDistribution;
+    if (data.length === 0 || maxCount === 0) {
+      return (
+        <div style={{ padding: 24, textAlign: "center", color: "rgba(0, 0, 0, 0.45)" }}>
+          Nessun esame superato con voto per calcolare la distribuzione.
+        </div>
+      );
+    }
+    
+    const paddingX = 30;
+    const paddingY = 20;
+    const chartHeight = 150;
+    const chartWidth = 500;
+    
+    const barWidth = (chartWidth - paddingX - 10) / data.length;
+    
+    return (
+      <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} style={{ width: "100%", height: "auto" }}>
+        {/* Griglia orizzontale e assi */}
+        <line x1={paddingX} y1={chartHeight - paddingY} x2={chartWidth - 10} y2={chartHeight - paddingY} stroke="#bfbfbf" strokeWidth="1" />
+        
+        {/* Barre */}
+        {data.map((item, idx) => {
+          const barHeight = maxCount > 0 ? (item.count / maxCount) * (chartHeight - paddingY - 15) : 0;
+          const x = paddingX + idx * barWidth + 2;
+          const y = chartHeight - paddingY - barHeight;
+          const w = barWidth - 4;
+          
+          return (
+            <g key={item.grade}>
+              <Tooltip title={`${item.count} ${item.count === 1 ? "esame" : "esami"} con ${item.grade}`}>
+                <rect
+                  x={x}
+                  y={y}
+                  width={w}
+                  height={barHeight}
+                  fill={item.grade === "30L" ? "#52c41a" : item.grade === "30" ? "#1890ff" : "#36cfc9"}
+                  rx="2"
+                  style={{ transition: "all 0.3s" }}
+                />
+              </Tooltip>
+              {item.count > 0 && (
+                <text
+                  x={x + w / 2}
+                  y={y - 4}
+                  textAnchor="middle"
+                  fontSize="9"
+                  fill="rgba(0,0,0,0.65)"
+                  fontFamily="sans-serif"
+                >
+                  {item.count}
+                </text>
+              )}
+              <text
+                x={x + w / 2}
+                y={chartHeight - paddingY + 12}
+                textAnchor="middle"
+                fontSize="9"
+                fill="rgba(0,0,0,0.45)"
+                fontFamily="sans-serif"
+              >
+                {item.grade}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    );
+  };
+
   return (
     <div>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          body {
+            background: #fff !important;
+            color: #000 !important;
+            font-size: 11pt !important;
+          }
+          .ant-layout-sider,
+          .ant-layout-header,
+          .no-print,
+          .ant-segmented,
+          .ant-btn,
+          .ant-select,
+          .ant-radio-group,
+          header,
+          aside,
+          nav {
+            display: none !important;
+          }
+          .ant-layout-content,
+          .ant-layout {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: transparent !important;
+            width: 100% !important;
+          }
+          .ant-card {
+            border: none !important;
+            box-shadow: none !important;
+            margin-bottom: 0 !important;
+          }
+          .ant-card-head {
+            border-bottom: 1.5px solid #333 !important;
+            padding: 0 !important;
+          }
+          .ant-card-body {
+            padding: 8pt 0 !important;
+          }
+          .ant-table {
+            font-size: 9pt !important;
+            width: 100% !important;
+          }
+          .ant-table-thead > tr > th {
+            background: #f5f5f5 !important;
+            color: #000 !important;
+            font-weight: bold !important;
+          }
+          .ant-statistic-title {
+            font-size: 8pt !important;
+          }
+          .ant-statistic-content-value {
+            font-size: 14pt !important;
+            font-weight: bold !important;
+          }
+        }
+      `}} />
+
       <div
         style={{
           marginBottom: 24,
@@ -480,18 +851,30 @@ export default function CarrieraPage() {
             </Tag>
           )}
         </Typography.Title>
-        <Space size={12} wrap>
+        <Space size={12} wrap className="no-print">
           <Segmented
             options={[
               { label: "Dashboard", value: "dashboard", icon: <AppstoreOutlined /> },
               { label: "Storia", value: "storia", icon: <HistoryOutlined /> },
+              { label: "Simulatore", value: "simulatore", icon: <CalculatorOutlined /> },
             ]}
             value={viewMode}
             onChange={(val) => {
-              setViewMode(val as "dashboard" | "storia");
+              setViewMode(val as "dashboard" | "storia" | "simulatore");
               if (val === "dashboard") setSelectedHistoryIndex(null);
             }}
           />
+          <Dropdown
+            menu={{
+              items: [
+                { key: "csv", label: "Esporta in CSV", icon: <FileExcelOutlined />, onClick: handleExportCSV },
+                { key: "pdf", label: "Stampa / Salva PDF", icon: <PrinterOutlined />, onClick: handlePrintPDF },
+              ],
+            }}
+            placement="bottomRight"
+          >
+            <Button icon={<DownloadOutlined />}>Esporta</Button>
+          </Dropdown>
           {carriere.length > 1 && (
             <Select
               value={matId ?? undefined}
@@ -522,6 +905,27 @@ export default function CarrieraPage() {
             </div>
           }
           style={{ marginBottom: 24 }}
+          className="no-print"
+        />
+      )}
+
+      {isSimulatoreActive && (
+        <Alert
+          type="warning"
+          showIcon
+          icon={<CalculatorOutlined />}
+          message={
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+              <span>
+                <strong>Modalità Simulatore Attiva</strong>: le statistiche includono gli esami simulati inseriti.
+              </span>
+              <Button size="small" onClick={() => setMockExams([])} disabled={mockExams.length === 0}>
+                Svuota simulatore
+              </Button>
+            </div>
+          }
+          style={{ marginBottom: 24 }}
+          className="no-print"
         />
       )}
 
@@ -530,13 +934,17 @@ export default function CarrieraPage() {
           <Card 
             style={{ 
               height: "100%", 
-              borderColor: isHistoryActive ? "#1890ff" : undefined, 
-              boxShadow: isHistoryActive ? "0 0 8px rgba(24, 144, 255, 0.15)" : undefined,
+              borderColor: isHistoryActive ? "#1890ff" : isSimulatoreActive ? "#722ed1" : undefined, 
+              boxShadow: isHistoryActive ? "0 0 8px rgba(24, 144, 255, 0.15)" : isSimulatoreActive ? "0 0 8px rgba(114, 46, 209, 0.15)" : undefined,
               transition: "all 0.3s"
             }}
           >
             <Statistic
-              title="Media ponderata"
+              title={
+                <span>
+                  Media ponderata {isSimulatoreActive && <Tag color="purple" style={{ marginLeft: 6 }}>Simulato</Tag>}
+                </span>
+              }
               value={currentStats.mediaPonderata}
               precision={2}
             />
@@ -546,13 +954,17 @@ export default function CarrieraPage() {
           <Card 
             style={{ 
               height: "100%", 
-              borderColor: isHistoryActive ? "#1890ff" : undefined,
-              boxShadow: isHistoryActive ? "0 0 8px rgba(24, 144, 255, 0.15)" : undefined,
+              borderColor: isHistoryActive ? "#1890ff" : isSimulatoreActive ? "#722ed1" : undefined,
+              boxShadow: isHistoryActive ? "0 0 8px rgba(24, 144, 255, 0.15)" : isSimulatoreActive ? "0 0 8px rgba(114, 46, 209, 0.15)" : undefined,
               transition: "all 0.3s"
             }}
           >
             <Statistic
-              title="Voto di partenza"
+              title={
+                <span>
+                  Voto di partenza {isSimulatoreActive && <Tag color="purple" style={{ marginLeft: 6 }}>Simulato</Tag>}
+                </span>
+              }
               value={currentStats.mediaPonderata ? (currentStats.mediaPonderata / 30) * 110 : 0}
               precision={2}
             />
@@ -562,25 +974,36 @@ export default function CarrieraPage() {
           <Card 
             style={{ 
               height: "100%", 
-              borderColor: isHistoryActive ? "#1890ff" : undefined,
-              boxShadow: isHistoryActive ? "0 0 8px rgba(24, 144, 255, 0.15)" : undefined,
+              borderColor: isHistoryActive ? "#1890ff" : isSimulatoreActive ? "#722ed1" : undefined,
+              boxShadow: isHistoryActive ? "0 0 8px rgba(24, 144, 255, 0.15)" : isSimulatoreActive ? "0 0 8px rgba(114, 46, 209, 0.15)" : undefined,
               transition: "all 0.3s"
             }}
           >
-            <Statistic title="CFU acquisiti" value={currentStats.cfuFatti} />
+            <Statistic 
+              title={
+                <span>
+                  CFU acquisiti {isSimulatoreActive && <Tag color="purple" style={{ marginLeft: 6 }}>Simulato</Tag>}
+                </span>
+              } 
+              value={currentStats.cfuFatti} 
+            />
           </Card>
         </Col>
         <Col xs={12} md={6}>
           <Card 
             style={{ 
               height: "100%", 
-              borderColor: isHistoryActive ? "#1890ff" : undefined,
-              boxShadow: isHistoryActive ? "0 0 8px rgba(24, 144, 255, 0.15)" : undefined,
+              borderColor: isHistoryActive ? "#1890ff" : isSimulatoreActive ? "#722ed1" : undefined,
+              boxShadow: isHistoryActive ? "0 0 8px rgba(24, 144, 255, 0.15)" : isSimulatoreActive ? "0 0 8px rgba(114, 46, 209, 0.15)" : undefined,
               transition: "all 0.3s"
             }}
           >
             <Statistic
-              title="Esami superati"
+              title={
+                <span>
+                  Esami superati {isSimulatoreActive && <Tag color="purple" style={{ marginLeft: 6 }}>Simulato</Tag>}
+                </span>
+              }
               value={currentStats.esamiSuperati}
               suffix={`/ ${(s?.esamiSuperati ?? 0) + (s?.esamiDaFare ?? 0)}`}
             />
@@ -588,24 +1011,151 @@ export default function CarrieraPage() {
         </Col>
       </Row>
 
-      {viewMode === "storia" ? (
+      {viewMode === "simulatore" ? (
+        <Row gutter={[24, 24]} className="no-print">
+          {/* Colonna Sinistra: Esami Simulati */}
+          <Col xs={24} lg={12}>
+            <Card title="Simulatore Esami Ipotetici">
+              {/* Form d'inserimento rapido */}
+              <div style={{ marginBottom: 20, padding: 12, background: "#f9f9f9", borderRadius: 8, border: "1px dashed #d9d9d9" }}>
+                <Typography.Text strong style={{ display: "block", marginBottom: 12 }}>
+                  Aggiungi esame ipotetico per simulare la media:
+                </Typography.Text>
+                <Row gutter={[8, 8]} align="middle">
+                  <Col xs={24} sm={10}>
+                    <Input 
+                      placeholder="Nome insegnamento (opzionale)" 
+                      value={newExamName} 
+                      onChange={e => setNewExamName(e.target.value)} 
+                    />
+                  </Col>
+                  <Col xs={12} sm={4}>
+                    <Select
+                      style={{ width: "100%" }}
+                      placeholder="CFU"
+                      value={newExamCFU || undefined}
+                      onChange={val => setNewExamCFU(val)}
+                      options={[3, 6, 9, 12, 15].map(v => ({ value: v, label: `${v} CFU` }))}
+                    />
+                  </Col>
+                  <Col xs={12} sm={6}>
+                    <Select
+                      style={{ width: "100%" }}
+                      placeholder="Voto"
+                      value={newExamGrade === "" ? undefined : newExamGrade}
+                      onChange={val => {
+                        setNewExamGrade(val === undefined ? "" : val);
+                        if (val !== 30) setNewExamLode(false);
+                      }}
+                      options={[
+                        ...Array.from({ length: 13 }, (_, i) => 18 + i).map(v => ({ value: v, label: String(v) })),
+                        { value: null as any, label: "Idoneo" }
+                      ]}
+                    />
+                  </Col>
+                  <Col xs={12} sm={4} style={{ display: 'flex', justifyContent: 'center' }}>
+                    <Radio.Group 
+                      disabled={newExamGrade !== 30}
+                      value={newExamLode ? "L" : ""}
+                      onChange={e => setNewExamLode(e.target.value === "L")}
+                    >
+                      <Radio.Button value="L">Lode</Radio.Button>
+                    </Radio.Group>
+                  </Col>
+                  <Col xs={24} style={{ textAlign: 'right', marginTop: 8 }}>
+                    <Button 
+                      type="primary" 
+                      icon={<PlusOutlined />} 
+                      onClick={handleAddMockExam}
+                      disabled={newExamCFU === ""}
+                    >
+                      Aggiungi Esame
+                    </Button>
+                  </Col>
+                </Row>
+              </div>
+
+              {/* Lista esami simulati */}
+              {mockExams.length === 0 ? (
+                <div style={{ textAlign: "center", color: "rgba(0, 0, 0, 0.45)", padding: "24px 0" }}>
+                  Nessun esame simulato aggiunto. Usa il form sopra per aggiungere esami.
+                </div>
+              ) : (
+                <div style={{ maxHeight: "40vh", overflowY: "auto" }}>
+                  <List
+                    dataSource={mockExams}
+                    renderItem={item => (
+                      <List.Item
+                        actions={[
+                          <Button 
+                            key="delete" 
+                            type="text" 
+                            danger 
+                            icon={<DeleteOutlined />} 
+                            onClick={() => handleRemoveMockExam(item.id)} 
+                          />
+                        ]}
+                      >
+                        <List.Item.Meta
+                          title={item.adDes}
+                          description={
+                            <Space split="•">
+                              <span>{item.peso} CFU</span>
+                              <span>{item.voto !== null ? `${item.voto}${item.lode ? " e Lode" : ""}` : "Idoneo"}</span>
+                            </Space>
+                          }
+                        />
+                      </List.Item>
+                    )}
+                  />
+                </div>
+              )}
+            </Card>
+          </Col>
+
+          {/* Colonna Destra: Proiezioni & Distribuzione */}
+          <Col xs={24} lg={12}>
+            <Row gutter={[16, 16]}>
+              {/* Proiezioni di Laurea */}
+              <Col xs={24}>
+                <Card title="Proiezioni Laurea (CFU Rimanenti)">
+                  <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 16 }}>
+                    <Typography.Text>Voto laurea desiderato:</Typography.Text>
+                    <Select
+                      style={{ width: 100 }}
+                      value={targetGraduationScore}
+                      onChange={val => setTargetGraduationScore(val)}
+                      options={Array.from({ length: 45 }, (_, i) => 66 + i).reverse().map(v => ({ value: v, label: String(v) }))}
+                    />
+                  </div>
+                  
+                  {targetProjections ? (
+                    <Alert
+                      type={targetProjections.achievable ? "success" : "warning"}
+                      showIcon
+                      message="Proiezione per i CFU rimanenti"
+                      description={targetProjections.message}
+                    />
+                  ) : (
+                    <div style={{ color: "rgba(0, 0, 0, 0.45)" }}>Impossibile calcolare la proiezione (nessun CFU rimanente).</div>
+                  )}
+                </Card>
+              </Col>
+
+              {/* Distribuzione Voti */}
+              <Col xs={24}>
+                <Card title="Distribuzione Voti Superati (Reali)">
+                  {renderSVGHistogram()}
+                </Card>
+              </Col>
+            </Row>
+          </Col>
+        </Row>
+      ) : viewMode === "storia" ? (
         <Row gutter={[24, 24]}>
           <Col xs={24} lg={10}>
             <Card 
               title="Linea Temporale Esami" 
-              extra={
-                <Radio.Group 
-                  size="small" 
-                  value={sortBy} 
-                  onChange={(e) => {
-                    setSortBy(e.target.value);
-                    setSelectedHistoryIndex(null);
-                  }}
-                >
-                  <Radio.Button value="dataRicezione">Reg/Verb</Radio.Button>
-                  <Radio.Button value="dataEsa">Esame</Radio.Button>
-                </Radio.Group>
-              }
             >
               {historyStats.length === 0 ? (
                 <div style={{ textAlign: "center", color: "rgba(0, 0, 0, 0.45)", padding: 24 }}>
@@ -729,7 +1279,7 @@ export default function CarrieraPage() {
                                 <Statistic 
                                   title="Impatto sulla Media" 
                                   value={impact} 
-                                  precision={4}
+                                  precision={2}
                                   valueStyle={{ color: impact > 0 ? '#3f8600' : impact < 0 ? '#cf1322' : 'inherit' }}
                                   prefix={impact > 0 ? <ArrowUpOutlined /> : impact < 0 ? <ArrowDownOutlined /> : <LineOutlined />}
                                 />
