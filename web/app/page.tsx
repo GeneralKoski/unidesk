@@ -1086,7 +1086,7 @@ export default function CarrieraPage() {
                   Nessun esame superato registrato.
                 </div>
               ) : (
-                <div style={{ maxHeight: "65vh", overflowY: "auto", paddingRight: 8, paddingTop: 8 }}>
+                <div style={{ maxHeight: "65vh", overflowY: "auto", paddingRight: 8, paddingLeft: 8, paddingTop: 8 }}>
                   <Timeline
                     mode="left"
                     items={historyStats
