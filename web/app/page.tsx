@@ -339,27 +339,7 @@ export default function CarrieraPage() {
     setMockExams(mockExams.filter(exam => exam.id !== id));
   };
 
-  const handleExportCSV = () => {
-    if (!libretto?.superate) return;
-    const headers = ["Insegnamento", "CFU", "Tipo", "Voto", "Lode", "Data Esame"];
-    const rows = libretto.superate.map(r => [
-      `"${r.adDes.replace(/"/g, '""')}"`,
-      r.peso,
-      r.tipoInsDes,
-      r.esito.voto !== null ? r.esito.voto : "Idoneo",
-      r.esito.lode ? "Sì" : "No",
-      r.esito.dataEsa?.slice(0, 10) ?? ""
-    ]);
-    const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `libretto_${matId || 'carriera'}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+
 
   const handlePrintPDF = () => {
     window.print();
@@ -864,17 +844,7 @@ export default function CarrieraPage() {
               if (val === "dashboard") setSelectedHistoryIndex(null);
             }}
           />
-          <Dropdown
-            menu={{
-              items: [
-                { key: "csv", label: "Esporta in CSV", icon: <FileExcelOutlined />, onClick: handleExportCSV },
-                { key: "pdf", label: "Stampa / Salva PDF", icon: <PrinterOutlined />, onClick: handlePrintPDF },
-              ],
-            }}
-            placement="bottomRight"
-          >
-            <Button icon={<DownloadOutlined />}>Esporta</Button>
-          </Dropdown>
+          <Button icon={<PrinterOutlined />} onClick={handlePrintPDF}>Esporta PDF</Button>
           {carriere.length > 1 && (
             <Select
               value={matId ?? undefined}
