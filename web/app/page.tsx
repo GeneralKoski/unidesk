@@ -1091,8 +1091,12 @@ export default function CarrieraPage() {
                 <div style={{ maxHeight: "65vh", overflowY: "auto", paddingRight: 8, paddingTop: 8 }}>
                   <Timeline
                     mode="left"
-                    items={historyStats.map((item, idx) => {
-                      const isSelected = selectedHistoryIndex === idx;
+                    items={historyStats
+                      .map((item, idx) => ({ ...item, originalIdx: idx }))
+                      .reverse()
+                      .map((item) => {
+                        const idx = item.originalIdx;
+                        const isSelected = selectedHistoryIndex === idx;
                       const voto = item.exam.esito.voto;
                       const lode = item.exam.esito.lode;
                       
