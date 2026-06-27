@@ -199,23 +199,6 @@ export default function CarrieraPage() {
     return statsList;
   }, [sortedHistory, sortBy]);
 
-  if (loading)
-    return <Spin size="large" style={{ display: "block", marginTop: 80 }} />;
-
-  if (error) {
-    return (
-      <Alert
-        type="error"
-        showIcon
-        message="Impossibile leggere Esse3"
-        description={`${error}. Prova a ricaricare la pagina o a rifare il login.`}
-      />
-    );
-  }
-
-  const sel = carriere.find((t) => t.matId === matId);
-  const s = libretto?.stats;
-
   // Calcolo delle statistiche simulate (esami reali superati + esami mock)
   const simulatedStats = useMemo(() => {
     const superateReali = libretto?.superate ?? [];
@@ -318,6 +301,23 @@ export default function CarrieraPage() {
       maxCount
     };
   }, [libretto?.superate]);
+
+  if (loading)
+    return <Spin size="large" style={{ display: "block", marginTop: 80 }} />;
+
+  if (error) {
+    return (
+      <Alert
+        type="error"
+        showIcon
+        message="Impossibile leggere Esse3"
+        description={`${error}. Prova a ricaricare la pagina o a rifare il login.`}
+      />
+    );
+  }
+
+  const sel = carriere.find((t) => t.matId === matId);
+  const s = libretto?.stats;
 
   const handleAddMockExam = () => {
     if (newExamCFU === "") return;
