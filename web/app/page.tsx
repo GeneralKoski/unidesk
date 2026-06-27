@@ -377,11 +377,9 @@ export default function CarrieraPage() {
       },
     })) as RigaDaSostenere[]);
 
-  const availableDaSostenere = useMemo(() => {
-    return dsRows.filter(
-      (ds) => !mockExams.some((me) => me.adDes === ds.adDes)
-    );
-  }, [dsRows, mockExams]);
+  const availableDaSostenere = dsRows.filter(
+    (ds) => !mockExams.some((me) => me.adDes === ds.adDes)
+  );
 
   const goToEsame = (r: RigaDaSostenere) => {
     const k = r.chiaveADContestualizzata;
