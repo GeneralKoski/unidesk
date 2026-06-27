@@ -341,10 +341,6 @@ export default function CarrieraPage() {
 
 
 
-  const handlePrintPDF = () => {
-    window.print();
-  };
-
   // Statistiche correnti, storiche o simulate
   const isHistoryActive = viewMode === "storia" && selectedHistoryIndex !== null;
   const isSimulatoreActive = viewMode === "simulatore";
@@ -753,63 +749,6 @@ export default function CarrieraPage() {
 
   return (
     <div>
-      <style dangerouslySetInnerHTML={{ __html: `
-        @media print {
-          body {
-            background: #fff !important;
-            color: #000 !important;
-            font-size: 11pt !important;
-          }
-          .ant-layout-sider,
-          .ant-layout-header,
-          .no-print,
-          .ant-segmented,
-          .ant-btn,
-          .ant-select,
-          .ant-radio-group,
-          header,
-          aside,
-          nav {
-            display: none !important;
-          }
-          .ant-layout-content,
-          .ant-layout {
-            margin: 0 !important;
-            padding: 0 !important;
-            background: transparent !important;
-            width: 100% !important;
-          }
-          .ant-card {
-            border: none !important;
-            box-shadow: none !important;
-            margin-bottom: 0 !important;
-          }
-          .ant-card-head {
-            border-bottom: 1.5px solid #333 !important;
-            padding: 0 !important;
-          }
-          .ant-card-body {
-            padding: 8pt 0 !important;
-          }
-          .ant-table {
-            font-size: 9pt !important;
-            width: 100% !important;
-          }
-          .ant-table-thead > tr > th {
-            background: #f5f5f5 !important;
-            color: #000 !important;
-            font-weight: bold !important;
-          }
-          .ant-statistic-title {
-            font-size: 8pt !important;
-          }
-          .ant-statistic-content-value {
-            font-size: 14pt !important;
-            font-weight: bold !important;
-          }
-        }
-      `}} />
-
       <div
         style={{
           marginBottom: 24,
@@ -844,7 +783,6 @@ export default function CarrieraPage() {
               if (val === "dashboard") setSelectedHistoryIndex(null);
             }}
           />
-          <Button icon={<PrinterOutlined />} onClick={handlePrintPDF}>Esporta PDF</Button>
           {carriere.length > 1 && (
             <Select
               value={matId ?? undefined}
