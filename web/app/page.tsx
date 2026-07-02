@@ -444,7 +444,7 @@ export default function CarrieraPage() {
             {r.esito.lode ? "L" : ""}
           </Tag>
         ) : (
-          <Tag>Idoneo</Tag>
+          <Tag color="green">Idoneo</Tag>
         ),
     },
     {
@@ -1259,7 +1259,7 @@ export default function CarrieraPage() {
                       >
                         <Typography.Text strong>{r.adDes}</Typography.Text>
                         <Tag
-                          color={r.esito.voto != null ? "green" : undefined}
+                          color="green"
                           style={{ marginRight: 0, flexShrink: 0 }}
                         >
                           {r.esito.voto != null
