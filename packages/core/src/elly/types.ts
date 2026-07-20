@@ -13,6 +13,8 @@ export interface Module {
   name: string;
   modname: string; // resource, url, folder, forum, assign, ...
   url?: string;
+  filename?: string; // nome file reale con estensione (moduli "resource")
+  mimetype?: string; // mime type del file (moduli "resource")
 }
 
 export interface Section {

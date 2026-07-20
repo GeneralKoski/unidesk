@@ -294,9 +294,45 @@ export class EllyClient {
     return files;
   }
 
+  // Metadati file (filename + mimetype) per i moduli "resource", indicizzati per
+  // cmid. get_state non li espone, quindi si usa core_course_get_contents in
+  // parallelo. Se la funzione non è ajax-abilitata sul Moodle, si degrada a
+  // vuoto (la lista resta funzionante, solo senza icone per tipo).
+  private async getContentsMeta(
+    courseid: number,
+  ): Promise<Map<number, { filename: string; mimetype?: string }>> {
+    const map = new Map<number, { filename: string; mimetype?: string }>();
+    try {
+      const sections = await this.ajax<
+        Array<{
+          modules?: Array<{
+            id: number;
+            modname: string;
+            contents?: Array<{ type: string; filename?: string; mimetype?: string }>;
+          }>;
+        }>
+      >("core_course_get_contents", { courseid, options: [] });
+      for (const s of sections ?? []) {
+        for (const m of s.modules ?? []) {
+          if (m.modname !== "resource") continue;
+          const file = (m.contents ?? []).find((c) => c.type === "file" && c.filename);
+          if (file?.filename) {
+            map.set(Number(m.id), { filename: file.filename, mimetype: file.mimetype });
+          }
+        }
+      }
+    } catch {
+      // core_course_get_contents non disponibile: nessun metadato.
+    }
+    return map;
+  }
+
   async getCourseContents(courseid: number): Promise<Section[]> {
     // get_state restituisce `data` come stringa JSON con course/section/cm.
-    const raw = await this.ajax<string>("core_courseformat_get_state", { courseid });
+    const [raw, meta] = await Promise.all([
+      this.ajax<string>("core_courseformat_get_state", { courseid }),
+      this.getContentsMeta(courseid),
+    ]);
     const state = JSON.parse(raw) as {
       section: Array<{ id: string; number: number; title: string; cmlist: string[]; visible: boolean }>;
       cm: Array<{ id: string; name: string; module: string; modname: string; url?: string; uservisible: boolean }>;
@@ -313,14 +349,19 @@ export class EllyClient {
         modules: s.cmlist
           .map((id) => cmById.get(String(id)))
           .filter((m): m is NonNullable<typeof m> => Boolean(m && m.uservisible))
-          .map(
-            (m): Module => ({
+          .map((m): Module => {
+            const fileMeta = meta.get(Number(m.id));
+            return {
               id: Number(m.id),
               name: m.name,
               modname: m.module, // "resource" | "url" | "folder" | "forum" | ...
               url: m.url,
-            }),
-          ),
+              ...(fileMeta && {
+                filename: fileMeta.filename,
+                mimetype: fileMeta.mimetype,
+              }),
+            };
+          }),
       }));
   }
 }
