@@ -13,10 +13,12 @@ function decodeEntities(s: string): string {
   return s
     .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
     .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(Number(d)))
-    .replace(/&amp;/g, "&")
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, " ")
     .replace(/&quot;/g, '"')
     .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">");
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
 }
 
 // Estrae action + input (name→value) dell'ennesimo <form> dell'HTML.
@@ -188,7 +190,11 @@ export class EllyClient {
       "core_course_get_enrolled_courses_by_timeline_classification",
       { classification: "all", limit: 0, offset: 0, sort: "fullname" },
     );
-    return data.courses ?? [];
+    return (data.courses ?? []).map((c) => ({
+      ...c,
+      fullname: decodeEntities(c.fullname),
+      shortname: decodeEntities(c.shortname),
+    }));
   }
 
   // Risolve l'URL di un modulo (es. /mod/resource/view.php?id=X) usando la
@@ -344,7 +350,7 @@ export class EllyClient {
       .sort((a, b) => a.number - b.number)
       .map((s) => ({
         id: Number(s.id),
-        name: s.title,
+        name: decodeEntities(s.title),
         section: s.number,
         modules: s.cmlist
           .map((id) => cmById.get(String(id)))
@@ -353,7 +359,7 @@ export class EllyClient {
             const fileMeta = meta.get(Number(m.id));
             return {
               id: Number(m.id),
-              name: m.name,
+              name: decodeEntities(m.name),
               modname: m.module, // "resource" | "url" | "folder" | "forum" | ...
               url: m.url,
               ...(fileMeta && {
