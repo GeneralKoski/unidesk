@@ -76,6 +76,8 @@ export default function CarrieraPage() {
   // Stati per il simulatore della media e proiezioni
   const [mockExams, setMockExams] = useState<Array<{ id: string; adDes: string; peso: number; voto: number | null; lode: boolean }>>([]);
   const [targetGraduationScore, setTargetGraduationScore] = useState<number>(110);
+  const [bonusInCorso, setBonusInCorso] = useState<number>(0);
+  const [bonusTesi, setBonusTesi] = useState<number>(0);
   const [newExamName, setNewExamName] = useState("");
   const [newExamCFU, setNewExamCFU] = useState<number | "">("");
   const [newExamGrade, setNewExamGrade] = useState<number | null | "">("");
@@ -119,6 +121,8 @@ export default function CarrieraPage() {
     setSelectedHistoryIndex(null);
     setViewMode("dashboard");
     setMockExams([]);
+    setBonusInCorso(0);
+    setBonusTesi(0);
   }, [matId]);
 
   // Helper per estrarre la data dell'esame in base al criterio
@@ -240,12 +244,18 @@ export default function CarrieraPage() {
     const effectiveRemainingCfu = Math.max(0, remainingCfu - mockCfu);
     const effectiveRealCfu = realCfu + mockCfu;
     const effectiveRealMedia = simulatedStats.mediaPonderata;
+
+    // Punti bonus della commissione: si sommano al voto di partenza
+    const bonusPoints = bonusInCorso + bonusTesi;
+    const bonusLabel = bonusPoints > 0 ? ` (con ${bonusPoints} punti bonus)` : "";
     
     if (effectiveRemainingCfu <= 0) {
-      return { achievable: true, message: "Obiettivo raggiunto! Hai simulato il completamento di tutti i CFU rimanenti." };
+      const votoFinale = (effectiveRealMedia / 30) * 110 + bonusPoints;
+      return { achievable: votoFinale >= targetGraduationScore, message: `Hai simulato il completamento di tutti i CFU rimanenti. Voto di laurea proiettato: ${votoFinale.toFixed(2)}${bonusLabel}.` };
     }
     
-    const targetAvg = (targetGraduationScore * 30) / 110;
+    // Il target da raggiungere con la media è al netto dei punti bonus
+    const targetAvg = ((targetGraduationScore - bonusPoints) * 30) / 110;
     const totalCfu = effectiveRealCfu + effectiveRemainingCfu;
     
     // Formula per la media necessaria
@@ -255,22 +265,22 @@ export default function CarrieraPage() {
       return { 
         achievable: true, 
         neededAvg, 
-        message: `Obiettivo garantito! Ti basta mantenere una media ponderata di 18.00 (o idoneità) nei restanti ${effectiveRemainingCfu} CFU.`
+        message: `Obiettivo garantito${bonusLabel}! Ti basta mantenere una media ponderata di 18.00 (o idoneità) nei restanti ${effectiveRemainingCfu} CFU.`
       };
     }
     if (neededAvg > 30) {
       return { 
         achievable: false, 
         neededAvg, 
-        message: `Obiettivo non raggiungibile matematicamente. Richiederebbe una media ponderata di ${neededAvg.toFixed(2)} nei restanti ${effectiveRemainingCfu} CFU.`
+        message: `Obiettivo non raggiungibile matematicamente${bonusLabel}. Richiederebbe una media ponderata di ${neededAvg.toFixed(2)} nei restanti ${effectiveRemainingCfu} CFU.`
       };
     }
     return {
       achievable: true,
       neededAvg,
-      message: `Raggiungibile mantenendo una media ponderata di ${neededAvg.toFixed(2)} nei restanti ${effectiveRemainingCfu} CFU.`
+      message: `Raggiungibile${bonusLabel} mantenendo una media ponderata di ${neededAvg.toFixed(2)} nei restanti ${effectiveRemainingCfu} CFU.`
     };
-  }, [libretto?.stats, targetGraduationScore, mockExams, simulatedStats]);
+  }, [libretto?.stats, targetGraduationScore, bonusInCorso, bonusTesi, mockExams, simulatedStats]);
 
   // Distribuzione dei voti reali
   const gradeDistribution = useMemo(() => {
@@ -1052,6 +1062,27 @@ export default function CarrieraPage() {
                       options={Array.from({ length: 45 }, (_, i) => 66 + i).reverse().map(v => ({ value: v, label: String(v) }))}
                     />
                   </div>
+
+                  <Row gutter={[8, 8]} style={{ marginBottom: 16 }}>
+                    <Col xs={24} sm={12}>
+                      <Typography.Text style={{ display: "block", marginBottom: 4 }}>Punti laureato in corso:</Typography.Text>
+                      <Select
+                        style={{ width: "100%" }}
+                        value={bonusInCorso}
+                        onChange={val => setBonusInCorso(val)}
+                        options={Array.from({ length: 4 }, (_, i) => ({ value: i, label: `+${i}` }))}
+                      />
+                    </Col>
+                    <Col xs={24} sm={12}>
+                      <Typography.Text style={{ display: "block", marginBottom: 4 }}>Punti valutazione tesi:</Typography.Text>
+                      <Select
+                        style={{ width: "100%" }}
+                        value={bonusTesi}
+                        onChange={val => setBonusTesi(val)}
+                        options={Array.from({ length: 8 }, (_, i) => ({ value: i, label: `+${i}` }))}
+                      />
+                    </Col>
+                  </Row>
                   
                   {targetProjections ? (
                     <Alert
