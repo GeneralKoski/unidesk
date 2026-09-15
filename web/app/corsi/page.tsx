@@ -16,7 +16,7 @@ export default function CorsiPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getJSON<{ courses: Course[]; failed: string[] }>("/api/elly/courses")
+    getJSON<{ courses: Course[]; failed: string[] }>("/api/elly/courses?withStatus=1")
       .then((r) => {
         setCourses(r.courses);
         setFailed(r.failed ?? []);

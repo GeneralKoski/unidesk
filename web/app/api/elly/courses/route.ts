@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 // Elenca i corsi di TUTTE le istanze Elly configurate (anno corrente e
 // precedenti). Le iscrizioni non migrano fra un anno accademico e l'altro,
 // quindi chi ha esami arretrati ha i corsi sparsi su piu' istanze.
-export async function GET() {
+export async function GET(req: Request) {
   const clients = await ellyClientsOrNull();
   if (!clients) return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
 
@@ -38,8 +38,10 @@ export async function GET() {
     (a, b) => (b.year ?? 0) - (a.year ?? 0) || a.fullname.localeCompare(b.fullname),
   );
 
-  // Forma sempre uguale, anche quando non fallisce niente: un client che deve
-  // indovinare se riceve un array o un oggetto e' un client che prima o poi
-  // sbaglia.
-  return NextResponse.json({ courses, failed });
+  // La forma predefinita resta l'array, perche' e' quella che i client gia'
+  // pubblicati (l'app mobile) si aspettano: cambiarla li romperebbe senza che
+  // possano aggiornarsi subito. Chi vuole sapere anche quali istanze non hanno
+  // risposto lo chiede esplicitamente con ?withStatus=1.
+  const withStatus = new URL(req.url).searchParams.get("withStatus") === "1";
+  return NextResponse.json(withStatus ? { courses, failed } : courses);
 }
