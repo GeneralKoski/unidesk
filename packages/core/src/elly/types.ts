@@ -1,5 +1,11 @@
 export interface Course {
   id: number;
+  // Istanza Elly da cui arriva il corso. Gli id sono per-istanza, quindi due
+  // corsi di anni diversi possono avere lo stesso id: serve per non confonderli
+  // e per sapere a chi rivolgersi per contenuti e file.
+  base: string;
+  // Anno accademico dell'istanza, ricavato dalla base. Solo per mostrarlo.
+  year?: number;
   shortname: string;
   fullname: string;
   viewurl?: string;

@@ -39,12 +39,16 @@ function parseForm(html: string, idx = 0): { action: string; inputs: Record<stri
 // quando scade. La chiave è l'username (le credenziali arrivano dalla sessione).
 const clients = new Map<string, EllyClient>();
 export function ellyClient(cfg: EllyConfig): EllyClient {
-  let c = clients.get(cfg.user);
+  // La chiave comprende la base: ogni anno accademico è un'istanza Moodle a
+  // sé, con sessione e sesskey propri. Indicizzare solo sull'utente farebbe
+  // tornare il client di un'altra istanza a chi ne chiede una diversa.
+  const key = `${cfg.base.replace(/\/+$/, "")}\n${cfg.user}`;
+  let c = clients.get(key);
   // Se la password è cambiata, il client cached ha credenziali (e sessione)
   // ormai stale: lo ricreo, altrimenti il re-login fallirebbe alla scadenza.
   if (!c || c.password !== cfg.pass) {
     c = new EllyClient(cfg);
-    clients.set(cfg.user, c);
+    clients.set(key, c);
   }
   return c;
 }
@@ -62,6 +66,11 @@ export class EllyClient {
 
   get password(): string {
     return this.cfg.pass;
+  }
+
+  // L'istanza Elly a cui questo client parla, senza slash finale.
+  get base(): string {
+    return this.cfg.base.replace(/\/+$/, "");
   }
 
   // Il flusso SSO Shibboleth è instabile: a volte l'IdP restituisce una pagina
@@ -190,10 +199,14 @@ export class EllyClient {
       "core_course_get_enrolled_courses_by_timeline_classification",
       { classification: "all", limit: 0, offset: 0, sort: "fullname" },
     );
+    const base = this.cfg.base.replace(/\/+$/, "");
+    const year = Number(new URL(base).host.match(/elly(\d{4})/)?.[1]);
     return (data.courses ?? []).map((c) => ({
       ...c,
       fullname: decodeEntities(c.fullname),
       shortname: decodeEntities(c.shortname),
+      base,
+      year: Number.isFinite(year) ? year : undefined,
     }));
   }
 

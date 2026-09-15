@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
-import { ellyOrNull } from "@/lib/session";
+import { ellyForBaseOrNull } from "@/lib/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  const client = await ellyOrNull();
-  if (!client) return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
+  const params = new URL(req.url).searchParams;
+  // "base" dice su quale istanza Elly vive il corso: gli id sono per-istanza.
+  // Senza, si ricade su quella corrente e i corsi degli anni passati non si
+  // aprono. ellyForBaseOrNull valida la base contro quelle configurate.
+  const client = await ellyForBaseOrNull(params.get("base"));
+  if (!client) return NextResponse.json({ error: "Non autenticato o istanza Elly sconosciuta" }, { status: 401 });
   try {
-    const param = new URL(req.url).searchParams.get("courseid");
+    const param = params.get("courseid");
     if (!param) {
       return NextResponse.json({ error: "courseid mancante" }, { status: 400 });
     }

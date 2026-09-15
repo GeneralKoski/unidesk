@@ -12,7 +12,14 @@ interfaccia, con login per utente. Monorepo a workspace npm: `packages/core` +
     Libretto, media, appelli `calesa`, prenotazione/disiscrizione.
   - `elly/client.ts` — login **Shibboleth SSO** via fetch → sessione Moodle +
     sesskey, API AJAX interne; sessione **per-utente** con refresh automatico.
-  - `config.ts` — solo base URL (`esse3Base`, `ellyBase`); nessuna credenziale.
+  - `config.ts` — solo base URL (`esse3Base`, `ellyBases`); nessuna credenziale.
+    Unipr tiene **un'istanza Moodle per anno accademico** (`elly2025`,
+    `elly2026`, …) e le iscrizioni **non migrano**: i corsi degli esami
+    arretrati restano su quella del loro anno. `ellyBases()` ritorna tutte le
+    istanze da leggere (`ELLY_BASES` separate da virgola, altrimenti anno
+    corrente + precedente calcolati dalla data). Ogni `Course` porta la propria
+    `base`, e contenuti/cartelle/file la richiedono come parametro: va
+    **sempre** validata con `isKnownEllyBase` prima di costruire un client.
 - `web/` — Next.js 15 + Ant Design.
   - `app/` — pagine (dashboard, esami, corsi) + login gate in `AppShell`.
   - `app/api/**` — route server-side che wrappano `@unidesk/core`.

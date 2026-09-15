@@ -11,12 +11,16 @@ import SortableGrid from "@/lib/SortableGrid";
 export default function CorsiPage() {
   const router = useRouter();
   const [courses, setCourses] = useState<Course[]>([]);
+  const [failed, setFailed] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getJSON<Course[]>("/api/elly/courses")
-      .then(setCourses)
+    getJSON<{ courses: Course[]; failed: string[] }>("/api/elly/courses")
+      .then((r) => {
+        setCourses(r.courses);
+        setFailed(r.failed ?? []);
+      })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)))
       .finally(() => setLoading(false));
   }, []);
@@ -40,16 +44,26 @@ export default function CorsiPage() {
   return (
     <div>
       <Typography.Title level={3}>Corsi su Elly</Typography.Title>
+      {failed.length > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Elenco incompleto"
+          description={`Non ho potuto leggere ${failed.join(", ")}. I corsi di quegli anni non sono in elenco.`}
+        />
+      )}
       <SortableGrid
         items={courses}
-        getId={(c) => String(c.id)}
+        getId={(c) => `${c.base}:${c.id}`}
         storageKey="unidesk:order:corsi"
         renderItem={(c) => (
           <Card
             hoverable
             onClick={() =>
               router.push(
-                `/corsi/${c.id}?n=${encodeURIComponent(c.fullname ?? c.shortname)}`,
+                `/corsi/${c.id}?n=${encodeURIComponent(c.fullname ?? c.shortname)}` +
+                  `&base=${encodeURIComponent(c.base)}`,
               )
             }
             style={{ height: "100%" }}
@@ -57,7 +71,9 @@ export default function CorsiPage() {
             <Card.Meta
               avatar={<BookOutlined style={{ fontSize: 22, color: "#1677ff" }} />}
               title={c.fullname ?? c.shortname}
-              description={c.shortname}
+              description={
+                c.year ? `${c.shortname} · ${c.year}/${String(c.year + 1).slice(2)}` : c.shortname
+              }
             />
           </Card>
         )}

@@ -15,11 +15,14 @@ import {
 import type { Module, Section } from "@unidesk/core";
 import { getJSON } from "@/lib/api";
 
-const fileHref = (url: string, modname?: string) =>
-  `/api/elly/file?url=${encodeURIComponent(url)}` +
+// Ogni chiamata porta con se' l'istanza Elly del corso: gli id e gli URL dei
+// moduli sono per-istanza, e senza "base" si finirebbe a chiedere all'anno
+// corrente contenuti che stanno su quello precedente.
+const fileHref = (url: string, base: string, modname?: string) =>
+  `/api/elly/file?url=${encodeURIComponent(url)}&base=${encodeURIComponent(base)}` +
   (modname ? `&modname=${encodeURIComponent(modname)}` : "");
 
-function FolderItem({ m }: { m: Module }) {
+function FolderItem({ m, base }: { m: Module; base: string }) {
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState<{ name: string; url: string }[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -30,7 +33,11 @@ function FolderItem({ m }: { m: Module }) {
     if (files || !m.url) return;
     setLoading(true);
     try {
-      setFiles(await getJSON(`/api/elly/folder?url=${encodeURIComponent(m.url)}`));
+      setFiles(
+        await getJSON(
+          `/api/elly/folder?url=${encodeURIComponent(m.url)}&base=${encodeURIComponent(base)}`,
+        ),
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -56,7 +63,7 @@ function FolderItem({ m }: { m: Module }) {
             style={{ marginInlineStart: 24 }}
             renderItem={(f) => (
               <List.Item>
-                <a href={fileHref(f.url)} target="_blank" rel="noreferrer">
+                <a href={fileHref(f.url, base)} target="_blank" rel="noreferrer">
                   <FileOutlined /> {f.name}
                 </a>
               </List.Item>
@@ -67,12 +74,12 @@ function FolderItem({ m }: { m: Module }) {
   );
 }
 
-function ModuleItem({ m }: { m: Module }) {
-  if (m.modname === "folder") return <FolderItem m={m} />;
+function ModuleItem({ m, base }: { m: Module; base: string }) {
+  if (m.modname === "folder") return <FolderItem m={m} base={base} />;
   const icon = m.modname === "resource" ? <FileOutlined /> : <LinkOutlined />;
   if (m.url) {
     return (
-      <a href={fileHref(m.url, m.modname)} target="_blank" rel="noreferrer">
+      <a href={fileHref(m.url, base, m.modname)} target="_blank" rel="noreferrer">
         {icon} {m.name}
       </a>
     );
@@ -82,15 +89,18 @@ function ModuleItem({ m }: { m: Module }) {
 
 export default function CorsoDettaglioPage() {
   const { id } = useParams<{ id: string }>();
-  const nome = useSearchParams().get("n") ?? "Corso";
+  const params = useSearchParams();
+  const nome = params.get("n") ?? "Corso";
+  const base = params.get("base") ?? "";
   const [sections, setSections] = useState<Section[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getJSON<Section[]>(`/api/elly/contents?courseid=${id}`)
+    const q = base ? `&base=${encodeURIComponent(base)}` : "";
+    getJSON<Section[]>(`/api/elly/contents?courseid=${id}${q}`)
       .then(setSections)
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
-  }, [id]);
+  }, [id, base]);
 
   return (
     <div>
@@ -122,7 +132,7 @@ export default function CorsoDettaglioPage() {
               dataSource={s.modules}
               renderItem={(m) => (
                 <List.Item>
-                  <ModuleItem m={m} />
+                  <ModuleItem m={m} base={base} />
                   <Tag style={{ marginLeft: "auto" }}>{m.modname}</Tag>
                 </List.Item>
               )}

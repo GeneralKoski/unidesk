@@ -5,6 +5,8 @@ import {
   ellyClient,
   esse3Base,
   ellyBase,
+  ellyBases,
+  isKnownEllyBase,
   loadEnv,
 } from "@unidesk/core";
 
@@ -49,7 +51,23 @@ export async function esse3OrNull(): Promise<Esse3Client | null> {
   return c ? new Esse3Client({ base: esse3Base(), ...c }) : null;
 }
 
-export async function ellyOrNull() {
+// Un client per ogni istanza Elly configurata (anno corrente + precedenti).
+// Serve perche' le iscrizioni non migrano da un anno all'altro: i corsi degli
+// esami arretrati vivono sull'istanza dell'anno in cui sono stati seguiti.
+export async function ellyClientsOrNull() {
   const c = await getCreds();
-  return c ? ellyClient({ base: ellyBase(), ...c }) : null;
+  if (!c) return null;
+  return ellyBases().map((base) => ellyClient({ base, ...c }));
+}
+
+// Client per una specifica istanza, scelta dal chiamante. La base viene
+// SEMPRE validata contro quelle configurate: arriva dalla query string, e
+// senza il controllo si potrebbero far partire richieste autenticate verso
+// un host qualsiasi. Ritorna null se non autenticato o se la base e' ignota.
+export async function ellyForBaseOrNull(base: string | null) {
+  const c = await getCreds();
+  if (!c) return null;
+  if (!base) return ellyClient({ base: ellyBase(), ...c });
+  if (!isKnownEllyBase(base)) return null;
+  return ellyClient({ base: base.replace(/\/+$/, ""), ...c });
 }

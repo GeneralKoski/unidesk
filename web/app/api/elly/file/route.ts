@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ellyOrNull } from "@/lib/session";
+import { ellyForBaseOrNull } from "@/lib/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -7,10 +7,10 @@ export const dynamic = "force-dynamic";
 // Proxy: scarica il materiale Elly con la sessione server-side e lo serve al
 // browser (che la sessione non ce l'ha). I moduli "url" rimandano all'esterno.
 export async function GET(req: Request) {
-  const client = await ellyOrNull();
-  if (!client) return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
+  const params = new URL(req.url).searchParams;
+  const client = await ellyForBaseOrNull(params.get("base"));
+  if (!client) return NextResponse.json({ error: "Non autenticato o istanza Elly sconosciuta" }, { status: 401 });
   try {
-    const params = new URL(req.url).searchParams;
     const url = params.get("url");
     if (!url) {
       return NextResponse.json({ error: "url mancante" }, { status: 400 });

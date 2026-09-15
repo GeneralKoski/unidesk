@@ -3,6 +3,9 @@ export {
   esse3Base,
   esse3WebBase,
   ellyBase,
+  ellyBases,
+  isKnownEllyBase,
+  currentAcademicYear,
   type Esse3Config,
   type EllyConfig,
 } from "./config.js";
